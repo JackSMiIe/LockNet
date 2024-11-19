@@ -46,7 +46,7 @@ async def orm_update_user_status(session: AsyncSession, user_id: int, new_status
 # Подсчет пользователей со статусом True
 async def orm_count_users_with_true_status(session: AsyncSession):
     try:
-        query = select(User).filter(User.status == True)  # Выбираем пользователей с статусом True
+        query = select(User).filter(User.status == True)  # Выбираем пользователей со статусом True
         result = await session.execute(query)
         users = result.scalars().all()  # Получаем все результаты
         count = len(users)  # Подсчитываем количество пользователей
