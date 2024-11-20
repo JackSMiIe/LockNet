@@ -1,6 +1,7 @@
 import logging,asyncio
 import os
 
+from aiogram.exceptions import TelegramAPIError, TelegramNotFound
 from datetime import datetime,timedelta
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -30,10 +31,7 @@ load_dotenv(find_dotenv())
 user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
 
-#----остановка тут
-# @user_private_router.message(~F.text)
-# async def allow_text_only(message: types.Message):
-#     await message.answer('Можно отправлять только текстовые сообщения!')
+
 
 
 @user_private_router.message(CommandStart())
@@ -287,3 +285,17 @@ async def send_qr(callback: types.CallbackQuery):
         await callback.message.answer_photo(photo=photo)
     except Exception as e:
         await callback.message.answer(f"Ошибка при отправке QR-кода: {e}")
+
+
+# Обработка всех файлов кроме текста
+@user_private_router.message(~F.text)
+async def allow_text_only(message: types.Message):
+    try:
+        await message.delete()  # Удаляем сообщение пользователя
+        await message.answer("Можно отправлять только текстовые сообщения!")  # Отправляем уведомление
+    except TelegramNotFound:
+        # Если сообщение уже удалено
+        pass
+    except TelegramAPIError as e:
+        # Обработка других ошибок Telegram API
+        print(f"Ошибка при удалении сообщения: {e}")
