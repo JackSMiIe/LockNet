@@ -53,6 +53,9 @@ async def check_subscriptions(session: AsyncSession):
         except Exception as e:
             print(f"Ошибка при проверке подписок: {e}")
             await session.rollback()  # Откат изменений при ошибке
+        finally:
+            if session:
+                await session.close()  # Явное закрытие сессии
 
         # Ожидание перед следующей проверкой
         await asyncio.sleep(3600)  # Проверяем подписки каждый час

@@ -5,6 +5,8 @@ from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import orm_add_product, orm_get_products, orm_delete_product
+#from database.orm_query_blacklist import add_to_blacklist, remove_from_blacklist, is_blacklisted, \
+#    get_all_blacklisted_users
 from database.orm_query_users import orm_count_users_with_true_status
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from kbds.inline import get_inlineMix_btns
@@ -25,6 +27,22 @@ admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 @admin_router.message(Command("admin"))
 async def admin_features(message: types.Message):
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
+#-----------------
+# @admin_router.message(F.text.lower() == 'черный список')
+# async def show_blacklist(message: types.Message, session: AsyncSession):
+#     # Получаем всех пользователей в черном списке
+#     users = await get_all_blacklisted_users(session)
+#
+#     # Формируем сообщение с данными пользователей
+#     if users:
+#         blacklist_info = "\n".join(
+#             [f"ID: {user.user_id}, Username: {user.username}, Причина: {user.reason}" for user in users]
+#         )
+#         await message.answer(f"Список пользователей в черном списке:\n{blacklist_info}")
+#     else:
+#         await message.answer("Черный список пуст.")
+#--------------
+
 
 # Показ ассортимента товаров
 @admin_router.message(F.text.lower() == 'ассортимент')

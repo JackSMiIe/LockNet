@@ -1,7 +1,7 @@
 
 from datetime import datetime, timedelta
 from sqlalchemy import String, Boolean, DateTime, Text, func, Integer, DECIMAL,LargeBinary
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
 
 
 # Базовый класс с полями для отслеживания времени создания и обновления
@@ -43,6 +43,22 @@ class User(Base):
             self.subscription_end = self.subscription_start + timedelta(days=product.count_day)
         else:
             self.subscription_end = None  # Если count_day не указан
+
+
+# Черный список
+# class BlacklistUser(Base):
+#     __tablename__ = 'blacklist'
+#
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+#     username: Mapped[str] = mapped_column(String(255), nullable=True)  # добавлено поле для username
+#     reason: Mapped[str] = mapped_column(Text, nullable=True)
+#     added_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
+#
+#     def __init__(self, user_id, username=None, reason=None):
+#         self.user_id = user_id
+#         self.username = username or "Не указано"  # если username не передан, то ставим значение "Не указано"
+#         self.reason = reason or "Причина не указана"
 
 
 
