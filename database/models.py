@@ -45,20 +45,20 @@ class User(Base):
             self.subscription_end = None  # Если count_day не указан
 
 
-# Черный список
-# class BlacklistUser(Base):
-#     __tablename__ = 'blacklist'
-#
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-#     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
-#     username: Mapped[str] = mapped_column(String(255), nullable=True)  # добавлено поле для username
-#     reason: Mapped[str] = mapped_column(Text, nullable=True)
-#     added_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
-#
-#     def __init__(self, user_id, username=None, reason=None):
-#         self.user_id = user_id
-#         self.username = username or "Не указано"  # если username не передан, то ставим значение "Не указано"
-#         self.reason = reason or "Причина не указана"
+#Черный список
+class BlacklistUser(Base):
+    __tablename__ = 'blacklist'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)  # добавлено поле для username
+    reason: Mapped[str] = mapped_column(Text, nullable=True)
+
+
+    def __init__(self, user_id, username=None, reason=None):
+        self.user_id = user_id
+        self.username = username or "Не указано"  # если username не передан, то ставим значение "Не указано"
+        self.reason = reason or "Причина не указана"
 
 
 
