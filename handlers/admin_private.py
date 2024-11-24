@@ -118,11 +118,12 @@ async def cancel_handler(callback_query: types.CallbackQuery, state: FSMContext)
 # Показ ассортимента товаров
 @admin_router.message(F.text.lower() == 'товары')
 async def menu_cmd(message: types.Message, session: AsyncSession):
-    await message.answer('Выберите действие:', reply_markup=get_inlineMix_btns(btns={
+    await message.answer('<b>Выберите действие:</b>', reply_markup=get_inlineMix_btns(btns={
         'Добавить товар': 'добавить товар_',
+        'Добавить акцию': 'добавить акцию_',
         'Ассортимент': 'ассортимент_',
         'Главное меню': 'назад_'
-    }))
+    }),parse_mode='HTML')
 
 @admin_router.callback_query(F.data.startswith('ассортимент_'))
 async def menu_cmd(callback_query: types.CallbackQuery, session: AsyncSession):
@@ -136,6 +137,7 @@ async def menu_cmd(callback_query: types.CallbackQuery, session: AsyncSession):
     # Разделяем товары на две категории: "Акция" и остальные
     action_products = [product for product in products if 'Акция' in product.name]
     other_products = [product for product in products if 'Акция' not in product.name]
+    other_products = sorted(other_products, key=lambda p: p.name.lower())
 
     # Формируем сообщение с товарами с "Акция"
     if action_products:
@@ -148,7 +150,7 @@ async def menu_cmd(callback_query: types.CallbackQuery, session: AsyncSession):
                 response_message,
                 reply_markup=get_inlineMix_btns(btns={
                     'Удалить': f'delete_{product.id}',
-                    'Выход': 'назад_'
+                    'Назад': 'назад_'
                 })
             )
 
@@ -163,11 +165,11 @@ async def menu_cmd(callback_query: types.CallbackQuery, session: AsyncSession):
                 response_message,
                 reply_markup=get_inlineMix_btns(btns={
                     'Удалить': f'delete_{product.id}',
-                    'Выход': 'назад_'
+                    'Назад': 'назад_'
                 })
             )
 
-    await callback_query.answer('Ок, актуальный прайс ⬆️')
+    await callback_query.message.answer('Ок, актуальный прайс ⬆️')
 
 
 # Обработка удаления товара
@@ -210,12 +212,37 @@ async def admin_add(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.answer("Введите название товара:", reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(AddProduct.name)
 
+@admin_router.callback_query(F.data.startswith('добавить акцию_'))
+async def admin_add(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    # Получаем список продуктов
+    promotion = await orm_get_products(session)
+
+    # Проверяем, есть ли продукт с именем "Акция"
+    existing_promotion = next((product for product in promotion if product.name.lower() == "акция"), None)
+
+    if existing_promotion:
+        # Если акция уже существует, сообщаем об этом
+        await callback.message.answer(
+            'Акция уже существует. Для добавления новой акции сначала удалите старую.')
+        await state.clear()  # Очистим состояние, если это необходимо
+    else:
+        # Если акции нет, создаем новую
+        await state.update_data(name="Акция")
+        await callback.message.answer("Введите количество дней акции:", reply_markup=get_inlineMix_btns(btns={
+            'Отмена' : 'назад_'
+        }))
+        await state.set_state(AddProduct.count_day)  # Переводим в следующее состояние для ввода цены
+
+# Команда отмены
 # Команда отмены
 @admin_router.message(StateFilter("*"), or_f(Command("отмена"), F.text.casefold() == "отмена"))
 async def cancel_handler(message: types.Message, state: FSMContext):
     if await state.get_state():
-        await state.clear()
+        await state.clear()  # Очистка состояния
         await message.answer("Действия отменены", reply_markup=ADMIN_KB)
+    else:
+        await message.answer("Нет активных действий для отмены.", reply_markup=ADMIN_KB)
+
 
 # Команда "назад" для возврата на предыдущий шаг
 @admin_router.message(StateFilter("*"), or_f(Command("назад"), F.text.casefold() == "назад"))
@@ -276,7 +303,10 @@ async def add_price(message: types.Message, state: FSMContext, session: AsyncSes
 
 # Обработка нажатия на кнопку "Назад" для возвращения в главное меню
 @admin_router.callback_query(F.data == 'назад_')
-async def back_to_menu(callback_query: types.CallbackQuery):
+async def back_to_menu(callback_query: types.CallbackQuery, state: FSMContext):
+    # Очистить текущее состояние
+    await state.clear()
+    # Ответ на нажатие кнопки "Назад"
     await callback_query.message.answer("Вы вернулись в меню.", reply_markup=ADMIN_KB)
 
 # @admin_router.callback_query(F.data == 'назад')

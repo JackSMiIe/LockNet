@@ -62,6 +62,5 @@ class BlacklistUser(Base):
 
 
 
-
     # config_file: Mapped[str] = mapped_column(Text, nullable=True)  # Содержимое config.conf
     # qr_code: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)  # Поле для хранения QR-кода в бинарном виде
