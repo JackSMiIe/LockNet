@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import orm_query_users
 
 async def check_subscriptions(session: AsyncSession):
-    print('Hello')
     while True:
         print("Запуск проверки подписок...")
         try:

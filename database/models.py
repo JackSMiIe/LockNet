@@ -19,6 +19,18 @@ class Product(Base):
     price: Mapped[int] = mapped_column(Integer,nullable=False) # Работать тут
     count_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Пример столбца
 
+class TrialProduct(Base):
+    __tablename__ = 'trial_product'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(15), nullable=False)
+    count_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Количество дней пробного периода
+    description: Mapped[str] = mapped_column(Text, nullable=True)  # Описание продукта (необязательно)
+
+    def __init__(self, name: str, count_day: int, description: str = None):
+        self.name = name
+        self.count_day = count_day
+        self.description = description
 
 # Класс пользователя
 class User(Base):
@@ -60,7 +72,45 @@ class BlacklistUser(Base):
         self.username = username or "Не указано"  # если username не передан, то ставим значение "Не указано"
         self.reason = reason or "Причина не указана"
 
+    # Класс временных пользователей (триальная подписка)
+class TrialUser(Base):
+    __tablename__ = 'trial_user'
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)
+    trial_start: Mapped[DateTime] = mapped_column(DateTime, default=datetime.utcnow)
+    trial_end: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    def __init__(self, user_id: int, count_day: int, username: str = None):
+        self.user_id = user_id
+        self.username = username
+        self.trial_start = datetime.utcnow()
+        self.trial_end = self.trial_start + timedelta(days=count_day)
+        self.is_active = True
+
+    # Класс пользователей с бесплатным доступом
+class FreeUser(Base):
+    __tablename__ = 'free_user'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)
+    registered_on: Mapped[DateTime] = mapped_column(DateTime, default=datetime.utcnow)
+    status: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    def __init__(self, user_id: int, username: str = None):
+        self.user_id = user_id
+        self.username = username
+        self.registered_on = datetime.utcnow()
+        self.status = True
+
+class UsedTrialUser(Base):
+    __tablename__ = "used_trial_user"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
 
     # config_file: Mapped[str] = mapped_column(Text, nullable=True)  # Содержимое config.conf
     # qr_code: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)  # Поле для хранения QR-кода в бинарном виде

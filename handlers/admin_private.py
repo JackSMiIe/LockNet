@@ -1,3 +1,5 @@
+from itertools import product
+
 from aiogram import Router, types, F
 from aiogram.filters import Command, or_f, StateFilter
 from aiogram.fsm.context import FSMContext
@@ -5,13 +7,15 @@ from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.util import await_only
 
+from database.models import TrialProduct
 from database.orm_query import orm_add_product, orm_get_products, orm_delete_product
 from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist
+from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product
 from database.orm_query_users import orm_count_users_with_true_status
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
-from handlers.payment_states import PaymentStates
+
 
 ADMIN_KB = get_keyboard(
     "Товары",            # Кнопка для управления товарами
@@ -121,10 +125,153 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
     await message.answer('<b>Выберите действие:</b>', reply_markup=get_inlineMix_btns(btns={
         'Добавить товар': 'добавить товар_',
         'Добавить акцию': 'добавить акцию_',
+        'Пробный период' : 'пробный период_',
         'Ассортимент': 'ассортимент_',
         'Главное меню': 'назад_'
     }),parse_mode='HTML')
 
+@admin_router.callback_query(F.data.startswith('пробный период_'))
+async def trial_menu(callback_query: types.CallbackQuery, state: FSMContext):
+    await callback_query.message.answer('Пробный период')
+    await callback_query.message.answer('Действия:', reply_markup=get_inlineMix_btns(btns={
+        'Просмотр': 'show_trial_',
+        'Добавить': 'add_trial_',
+    }))
+# Удаление продукта
+@admin_router.callback_query(F.data.startswith('delete_trial_'))
+async def delete_trial_product_callback(callback_query: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Печатаем callback_query.data для диагностики
+        print(f"Полученные данные: {callback_query.data}")
+
+        # Извлекаем product_id из callback_data
+        data = callback_query.data.split('_')[-1]
+
+        # Преобразуем ID продукта в целое число
+        try:
+            product_id = int(data)
+        except ValueError:
+            await callback_query.message.answer(f"Ошибка: некорректный ID продукта ({data}).")
+            return
+
+        # Вызываем функцию для удаления продукта
+        deleted_product = await delete_trial_product(session, product_id)
+
+        if deleted_product:
+            # Если продукт был успешно удалён
+            await callback_query.message.answer(f"Продукт с ID {product_id} был успешно удалён.")
+        else:
+            # Если продукт не найден
+            await callback_query.message.answer(f"Продукт с ID {product_id} не найден или не удалось удалить.")
+
+    except Exception as e:
+        # Логируем и сообщаем об ошибке
+        print(f"Произошла ошибка при удалении продукта: {str(e)}")
+        await callback_query.message.answer(f"Произошла ошибка: {str(e)}")
+
+
+# Получить все товары с пробным периодом
+@admin_router.callback_query(F.data.startswith('show_trial_'))
+async def trial_period_callback(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    try:
+        # Получаем все продукты с пробным периодом
+        products = await get_trial_products(session)
+
+        if not products:
+            # Если продуктов нет, отправляем сообщение и прекращаем выполнение
+            await callback_query.message.answer('В ассортименте нет товаров.')
+            return
+
+        # Отправляем каждый продукт в отдельном сообщении
+        for product in products:
+            response_message = (f"<strong>{product.name}</strong>\n"
+                                 f"Кол-во дней: {product.count_day}\n\n")
+            await callback_query.message.answer(response_message, reply_markup=get_inlineMix_btns(btns={
+                'Удалить': f"delete_trial_{product.id}"
+            }))
+
+    except Exception as e:
+        # Логируем исключение и выводим информацию о проблемах
+        print(f"Произошла ошибка при обработке запроса: {str(e)}")
+        await callback_query.message.answer(f"Произошла ошибка: {str(e)}")
+
+# Добавить товар пробный период
+class ProductState(StatesGroup):
+    waiting_for_product_name = State()
+    waiting_for_product_days = State()
+
+# Обработчик для добавления товара с пробным периодом
+@admin_router.callback_query(F.data.startswith('add_trial_'))
+async def add_trial_product_callback(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    try:
+        # Проверяем, есть ли уже продукт с пробным периодом
+        existing_products = await get_trial_products(session)
+
+        if len(existing_products) >= 1:
+            # Если в базе уже есть хотя бы один продукт с пробным периодом, выводим сообщение
+            await callback_query.message.answer(
+                "<b>В базе уже есть товар с пробным периодом. Только один товар может быть добавлен.</b>",parse_mode='HTML')
+            return
+
+        # Запрашиваем у пользователя название продукта
+        await callback_query.message.answer("Введите название продукта:")
+
+        # Переходим в состояние ожидания ввода названия
+        await state.set_state(ProductState.waiting_for_product_name)
+
+    except Exception as e:
+        # Логируем исключение и выводим информацию о проблемах
+        print(f"Произошла ошибка при добавлении продукта: {str(e)}")
+        await callback_query.message.answer(f"Произошла ошибка: {str(e)}")
+
+# Обработчик для получения названия товара
+@admin_router.message(ProductState.waiting_for_product_name)
+async def process_product_name(message: types.Message, state: FSMContext, session: AsyncSession):
+    product_name = message.text.strip()
+
+    # Проверка на пустое имя
+    if not product_name:
+        await message.answer("Название продукта не может быть пустым. Пожалуйста, введите название снова.")
+        return
+
+    # Сохраняем название в состоянии
+    await state.update_data(product_name=product_name)
+
+    # Переходим к запросу количества дней
+    await message.answer("Введите количество дней пробного периода:")
+
+    # Переходим в состояние ожидания ввода количества дней
+    await state.set_state(ProductState.waiting_for_product_days)
+
+# Обработчик для получения количества дней пробного периода
+@admin_router.message(ProductState.waiting_for_product_days)
+async def process_product_days(message: types.Message, state: FSMContext, session: AsyncSession):
+    try:
+        # Получаем количество дней и проверяем на корректность
+        count_day = int(message.text.strip())
+        if count_day <= 0:
+            await message.answer("Количество дней должно быть положительным числом. Пожалуйста, введите снова.")
+            return
+    except ValueError:
+        await message.answer("Пожалуйста, введите правильное количество дней.")
+        return
+
+    # Получаем данные из состояния
+    user_data = await state.get_data()
+    product_name = user_data.get("product_name")
+
+    # Добавляем новый товар в базу данных
+    try:
+        new_product = await add_trial_product(session, product_name, count_day)
+        await message.answer(f"Продукт <strong>{new_product.name}</strong> с пробным периодом на {new_product.count_day} дней успешно добавлен!")
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при добавлении продукта: {str(e)}")
+
+    # Завершаем состояние
+    await state.clear()
+
+
+# Ассортимент
 @admin_router.callback_query(F.data.startswith('ассортимент_'))
 async def menu_cmd(callback_query: types.CallbackQuery, session: AsyncSession):
     # Получаем все товары
