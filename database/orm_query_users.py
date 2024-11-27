@@ -1,4 +1,4 @@
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 
@@ -53,4 +53,31 @@ async def orm_count_users_with_true_status(session: AsyncSession):
         return count
     except Exception as e:
         print(f"Ошибка при подсчете пользователей со статусом True: {e}")
-        return 0
+        return None
+
+
+async def count_active_users(session: AsyncSession) -> int:
+    """
+    Подсчитывает количество активных пользователей (статус True).
+    """
+    query = select(func.count()).select_from(User).where(User.status.is_(True))
+    result = await session.execute(query)
+    return result.scalar()
+
+
+async def count_inactive_users(session: AsyncSession) -> int:
+    """
+    Подсчитывает количество неактивных пользователей (статус False).
+    """
+    query = select(func.count()).select_from(User).where(User.status.is_(False))
+    result = await session.execute(query)
+    return result.scalar()
+
+
+async def count_total_users(session: AsyncSession) -> int:
+    """
+    Подсчитывает общее количество пользователей.
+    """
+    query = select(func.count()).select_from(User)
+    result = await session.execute(query)
+    return result.scalar()

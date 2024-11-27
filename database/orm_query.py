@@ -1,5 +1,5 @@
 
-from sqlalchemy import select,update,delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import Product
 
@@ -38,14 +38,16 @@ async def orm_delete_product(session: AsyncSession, product_id: int):
     query = delete(Product).where(Product.id == product_id)
     await session.execute(query)
     await session.commit()
+# Подсчет ко-ва продуктов
+async def count_products(session: AsyncSession) -> int | None:
+    try:
+        # Подсчитываем количество записей в таблице Product
+        query = select(func.count(Product.id))
+        result = await session.execute(query)
+        count = result.scalar()  # Получаем единственное значение (количество)
+        return count
+    except Exception as e:
+        print(f"Ошибка при подсчете продуктов: {e}")
+        return None
 
-# """Запрос цены для дальнейшей оплаты"""
-# async def orm_get_price(session: AsyncSession, product_id: int) -> int:
-#     query = select(Product.price).where(Product.id == product_id)
-#     result = await session.execute(query)
-#     price = result.scalar()
-#
-#     if price is not None:
-#         return int(price * 100)
-#     else:
-#         raise ValueError("Product not found")
+

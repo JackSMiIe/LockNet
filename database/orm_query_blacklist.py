@@ -1,4 +1,4 @@
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from .models import BlacklistUser
@@ -51,3 +51,15 @@ async def get_all_blacklisted_users(session: AsyncSession):
     except Exception as e:
         print(f"Ошибка при получении пользователей: {e}")
         return []
+
+# Количество клиентов в черном списке
+async def count_blacklist_users(session: AsyncSession) -> int:
+    try:
+        # Запрос для подсчета всех записей в таблице BlacklistUser
+        query = select(func.count(BlacklistUser.id))
+        result = await session.execute(query)
+        count = result.scalar()  # Получаем единственное значение (количество)
+        return count
+    except Exception as e:
+        print(f"Ошибка при подсчете пользователей в черном списке: {e}")
+        return None

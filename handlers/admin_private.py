@@ -8,10 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.util import await_only
 
 from database.models import TrialProduct
-from database.orm_query import orm_add_product, orm_get_products, orm_delete_product
-from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist
-from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product
-from database.orm_query_users import orm_count_users_with_true_status
+from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products
+from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users
+from database.orm_query_free_user import count_free_users
+from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
+    count_trial_products
+from database.orm_query_trial_users import count_used_trial_users
+from database.orm_query_used_trial_user import get_all_users
+from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
@@ -471,3 +475,39 @@ async def admin_exit(message: types.Message, state: FSMContext):
 async def count_active_users(message: types.Message, session: AsyncSession):
     count = await orm_count_users_with_true_status(session)
     await message.answer(f"Количество активных пользователей (со статусом True): {count}", reply_markup=ADMIN_KB)
+
+
+@admin_router.message(F.text.lower() == 'статистика')
+async def statistic(message: types.Message, session: AsyncSession):
+    # Получаем количество активных пользователей
+    active_users = await orm_count_users_with_true_status(session)
+
+    # Подсчет клиентов с пробным периодом
+    trial_users = await count_used_trial_users(session)
+    # Черный список
+    black_list = await count_blacklist_users(session)
+    # Подсчет кл-ва продуктов
+    count_product = await count_products(session)
+    # Подсчет Безлимитных клиентов
+    free_users = await count_free_users(session)
+    # Подсчет ко-ва Акций
+    trial_product = await count_trial_products(session)
+    # Получаем количество неактивных пользователей
+    inactive_users_count = await count_inactive_users(session)
+
+    # Получаем общее количество пользователей
+    total_users_count = await count_total_users(session)
+
+    # Формируем сообщение
+    stats_message = (
+        f"Количество активных пользователей : {active_users}\n"
+        f"Неактивных пользователей : {inactive_users_count}\n"
+        f"Всего пользователей : {total_users_count}\n"
+        f"Безлимитных клиентов : {free_users}\n"
+        f"Клиенты с пробным периодом : {trial_users}\n" # отс тут 
+        f"Кл-во созданных продуктов : {count_product}\n"
+        f"Пробный продукт(должен быть всегда = 1) : {trial_product}\n"
+        f"В черном списке :{black_list}")
+
+    # Отправляем все статистики в одном сообщении
+    await message.answer(stats_message)

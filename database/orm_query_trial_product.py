@@ -1,4 +1,4 @@
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -60,4 +60,15 @@ async def delete_trial_product(session: AsyncSession, product_id: int):
         # Логируем ошибку
         print(f"Ошибка при удалении продукта: {e}")
         await session.rollback()  # Откатываем изменения в случае ошибки
+        return None
+# Подсчет кл-ва Акций
+async def count_trial_products(session: AsyncSession) -> int | None:
+    try:
+        # Подсчитываем количество записей в таблице TrialProduct
+        query = select(func.count(TrialProduct.id))
+        result = await session.execute(query)
+        count = result.scalar()  # Получаем единственное значение (количество)
+        return count
+    except Exception as e:
+        print(f"Ошибка при подсчете продуктов в пробном периоде: {e}")
         return None
