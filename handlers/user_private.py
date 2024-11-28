@@ -29,6 +29,7 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 # Команда старт
 @user_private_router.message(CommandStart())
 async def start_cmd(message: types.Message):
+    print(message.from_user.id)
     await message.answer(
         f"<b>{message.from_user.first_name}</b>\nДобро пожаловать в наш VPN бот!\nВыберите действие:",
         parse_mode='HTML',

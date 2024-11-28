@@ -60,7 +60,7 @@ async def check_subscriptions(session: AsyncSession):
 
         # Ожидание перед следующей проверкой
         await asyncio.sleep(3600)  # Проверяем подписки каждый час
-
+# Использовали ли клиент Пробную подписку
 async def check_subscriptions_trial(session: AsyncSession):
     while True:
         print("Запуск проверки Trial подписок...")

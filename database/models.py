@@ -19,6 +19,11 @@ class Product(Base):
     price: Mapped[int] = mapped_column(Integer,nullable=False) # Работать тут
     count_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Пример столбца
 
+    def __init__(self, name: str, price: float, count_day: int = None):
+        self.name = name
+        self.price = int(round(price * 100))  # Конвертация цены в центы
+        self.count_day = count_day
+# Пробный продукт (всегда 1)
 class TrialProduct(Base):
     __tablename__ = 'trial_product'
 
@@ -72,7 +77,7 @@ class BlacklistUser(Base):
         self.username = username or "Не указано"  # если username не передан, то ставим значение "Не указано"
         self.reason = reason or "Причина не указана"
 
-    # Класс временных пользователей (триальная подписка)
+# Класс временных пользователей (триальная подписка)
 class TrialUser(Base):
     __tablename__ = 'trial_user'
 
@@ -90,7 +95,7 @@ class TrialUser(Base):
         self.trial_end = self.trial_start + timedelta(days=count_day)
         self.is_active = True
 
-    # Класс пользователей с бесплатным доступом
+# Класс пользователей с бесплатным доступом
 class FreeUser(Base):
     __tablename__ = 'free_user'
 
@@ -105,7 +110,7 @@ class FreeUser(Base):
         self.username = username
         self.registered_on = datetime.utcnow()
         self.status = True
-
+# Использованный пробный период ID клиентов (для невозможности использовать пробный период вновь)
 class UsedTrialUser(Base):
     __tablename__ = "used_trial_user"
 

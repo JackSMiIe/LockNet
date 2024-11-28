@@ -1,13 +1,13 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import UsedTrialUser
+from database.models import TrialUser
 
 
-async def count_used_trial_users(session: AsyncSession) -> int | None:
+async def count_trial_users(session: AsyncSession) -> int | None:
     try:
         # Запрос для подсчета всех записей в таблице UsedTrialUser
-        query = select(func.count(UsedTrialUser.id))
+        query = select(func.count(TrialUser.id))
         result = await session.execute(query)
         count = result.scalar()  # Получаем единственное значение (количество)
         return count
