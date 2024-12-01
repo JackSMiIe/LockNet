@@ -9,15 +9,14 @@ from sqlalchemy.util import await_only
 
 from database.models import TrialProduct
 from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
-     count_promotion_products
+    count_promotion_products, orm_get_product
 from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users, \
     add_user_to_blacklist, remove_user_from_blacklist
 from database.orm_query_free_user import count_free_users
 from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
     count_trial_products
 from database.orm_query_trial_users import count_trial_users
-from database.orm_query_used_trial_user import get_all_users
-from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users
+from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users,orm_get_users
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
@@ -520,76 +519,155 @@ async def statistic(message: types.Message, session: AsyncSession):
 @admin_router.message(F.text == '🚫 ЧС')
 async def black_list(message: types.Message, session: AsyncSession):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
-        'Добавить по ID': 'add_user_',
-        'Удалить по ID': 'dell_user_',
-        'Просмотр списка': 'get_users_'
+        'Список клиентов(ЧС)': 'get_users_',
+        'Добавить клиента': 'add_users_',
+        'Удалить клиента': 'dell_users_',
+
     }))
-
+# Показать список ЧС
 @admin_router.callback_query(F.data == 'get_users_')
+async def delete_user_from_blacklist(callback_query: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Получаем список пользователей из черного списка
+        users_list = await get_all_blacklisted_users(session)
+        if not users_list:
+            await callback_query.message.answer("<b>Список пуст.</b>",parse_mode='HTML')
+            return
+
+        for user in users_list:
+            formatted_user = f"ID: {user.user_id}, Username: {user.username or 'Нет имени'}"
+
+            await callback_query.message.answer(formatted_user)
+
+
+    except Exception as e:
+        print(f"Ошибка при получении пользователей: {e}")
+        await callback_query.message.answer(f"Произошла ошибка при получении списка пользователей: {str(e)}")
+
+
+
+# Удаление из ЧС
+@admin_router.callback_query(F.data == 'dell_users_')
+async def delete_user_from_blacklist(callback_query: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Получаем список пользователей из черного списка
+        users_list = await get_all_blacklisted_users(session)
+
+        # Если список пуст, отправляем сообщение
+        if not users_list:
+            await callback_query.message.answer("<b>Список пуст.</b>",parse_mode='HTML')
+            return
+
+        # Формируем кнопки для каждого пользователя
+        for user in users_list:
+            formatted_user = f"ID: {user.user_id}, Username: {user.username or 'Нет имени'}"
+            callback_data = f'dellUser_{user.user_id}_{user.username}'
+
+            buttons = get_inlineMix_btns(btns={
+                'Удалить из ЧС': callback_data
+            })
+
+            # Отправляем сообщение с кнопками для удаления из ЧС
+            await callback_query.message.answer(formatted_user, reply_markup=buttons)
+
+    except Exception as e:
+        # Логируем ошибку
+        print(f"Ошибка при получении пользователей: {e}")
+        await callback_query.message.answer("Произошла ошибка при получении списка пользователей.")
+
+# Удаление из ЧС
+@admin_router.callback_query(F.data.startswith('dellUser_'))
+async def remove_user_from_blacklist_handler(callback_query: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Извлекаем данные из callback_data
+        data = callback_query.data.split('_')
+        if len(data) < 3:
+            await callback_query.answer("Неверный формат данных.")
+            return
+
+        user_id = int(data[1])  # user_id находится во втором элементе
+        username = '_'.join(data[2:])  # username — это все, что идет после user_id
+
+        # Логируем процесс удаления
+        print(f"Получен запрос на удаление из ЧС для пользователя: ID={user_id}, Username={username}")
+
+        # Удаляем пользователя из черного списка
+        result = await remove_user_from_blacklist(session, user_id)
+
+        # Отправляем результат удаления
+        await callback_query.answer(result)
+        if "успешно" in result:
+            await callback_query.message.answer(
+                f"Пользователь {username} с ID {user_id} был успешно удален из черного списка.")
+        else:
+            await callback_query.message.answer(f"Ошибка: {result}")
+
+
+    except Exception as e:
+        # Логируем ошибку и отправляем пользователю сообщение
+        print(f"Ошибка при удалении пользователя из ЧС: {e}")
+        await callback_query.answer("Произошла ошибка при удалении пользователя из черного списка.")
+
+
+
+# Выводит весь список пользователей и кнопку добавить в ЧС
+@admin_router.callback_query(F.data == 'add_users_')
 async def black_list_users(callback_query: types.CallbackQuery, session: AsyncSession):
-    users_list = await get_all_blacklisted_users(session)
-    await callback_query.message.answer(users_list)  # Отправляем список черного списка обратно в чат
+    try:
+        # Получаем список пользователей
+        users_list = await orm_get_users(session)
 
-class Form(StatesGroup):
-    waiting_for_user_id = State()  # Ожидаем ввода ID
-    waiting_for_user_id_dell = State()  # Ожидаем ввода ID
-    waiting_for_reason = State()   # Ожидаем ввода причины
+        # Если список пуст, отправляем сообщение
+        if not users_list:
+            await callback_query.message.answer("<b>Список пуст.</b>",parse_mode='HTML')
+            return
 
+        # Создаем сообщение и кнопки для каждого пользователя
+        for user in users_list:
+            formatted_user = f"ID: {user.user_id}, Username: {user.username or 'Нет имени'}"
+            # Формируем callback_data с передачей user_id и username
+            callback_data = f'addUser_{user.user_id}_{user.username}'
 
-@admin_router.callback_query(F.data == 'add_user_')
-async def add_user(callback_query: types.CallbackQuery,state: FSMContext):
-    await callback_query.message.answer('Введите ID пользователя для добавления в черный список:')
-    await state.set_state(Form.waiting_for_user_id)  # Переход к состоянию ожидания ID
+            # Кнопки для добавления в черный список
+            buttons = get_inlineMix_btns(btns={
+                'Добавить в ЧС': callback_data
+            })
 
+            # Отправляем сообщение с кнопками для каждого пользователя
+            await callback_query.message.answer(formatted_user, reply_markup=buttons)
+    except Exception as e:
+        # Логируем и отправляем сообщение об ошибке
+        print(f"Ошибка: {e}")
+        await callback_query.message.answer("Произошла ошибка при получении пользователей.")
 
-@admin_router.message(Form.waiting_for_user_id,F.text)
-async def get_user_id(message: types.Message, state: FSMContext):
-    user_id = message.text.strip()
+# Добавление по кнопке Добавить
+@admin_router.callback_query(F.data.startswith('addUser_'))
+async def add_user_black(callback: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Извлекаем данные из callback_data
+        data = callback.data.split('_')
+        if len(data) < 3:
+            await callback.answer("Неверный формат данных. Ожидается формат 'addUser_<user_id>_<username>'.")
+            return
 
-    if not user_id.isdigit():
-        await message.answer("ID должен быть числом. Попробуйте снова.")
-        return
-    if len(user_id) <= 8:
-        await message.answer("ID должен быть больше 8 символов. Попробуйте снова.")
-        return
+        user_id = int(data[1])  # user_id находится во втором элементе
+        username = '_'.join(data[2:])  # username — это все, что идет после user_id
 
-    # Сохраняем ID в состоянии
-    await state.update_data(user_id=user_id)
-    await message.answer(f"Теперь введите причину для добавления пользователя с ID {user_id} в черный список:")
-    await state.set_state(Form.waiting_for_reason)  # Переходим к состоянию ожидания причины
+        # Если username пустой, присваиваем значение "Не указано"
+        if not username:
+            username = 'Не указано'
 
+        # Логируем username и user_id
+        print(f"Получен запрос на добавление в ЧС для пользователя: ID={user_id}, Username={username}")
 
-@admin_router.message(Form.waiting_for_reason,F.text)
-async def set_reason(message: types.Message, state: FSMContext, session: AsyncSession):
-    reason = message.text.strip()  # Получаем причину из текста
+        # Вставляем пользователя в черный список
+        # Здесь передаем правильный объект сессии
+        await add_to_blacklist(callback.message, session, user_id, username)
 
-    data = await state.get_data()  # Получаем ID из состояния
-    user_id = int(data["user_id"])
+        # Отправляем ответ
+        await callback.message.answer(f"Пользователь {username} с ID {user_id} был добавлен в черный список.")
+    except Exception as e:
+        # Логируем ошибку и отправляем пользователю сообщение
+        print(f"Ошибка при добавлении пользователя в ЧС: {e}")
+        await callback.answer("Произошла ошибка при добавлении пользователя в черный список.")
 
-    # Добавляем пользователя в черный список
-    response = await add_user_to_blacklist(session, user_id, reason=reason)
-
-    await message.answer(response)
-    await state.clear()  # Завершаем состояние
-
-@admin_router.callback_query(F.data == 'dell_user_')
-async def add_user(callback_query: types.CallbackQuery,state: FSMContext):
-    await callback_query.message.answer('Введите ID пользователя для удаления из черного списка:')
-    await state.set_state(Form.waiting_for_user_id_dell)  # Переход к состоянию ожидания ID
-
-
-@admin_router.message(Form.waiting_for_user_id_dell,F.text)
-async def delete_user_by_id(message: types.Message, state: FSMContext, session: AsyncSession):
-    user_id = message.text.strip()
-
-    if not user_id.isdigit():
-        await message.answer("ID должен быть числом. Попробуйте снова.")
-        return
-
-    user_id = int(user_id)
-
-    # Удаляем пользователя из черного списка
-    response = await remove_user_from_blacklist(session, user_id)
-
-    await message.answer(response)
-    await state.clear()  # Завершаем состояние

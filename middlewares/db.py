@@ -5,7 +5,7 @@ from aiogram.types import Message, TelegramObject
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-
+# обеспечивает доступ к сессии базы данных для обработки каждого события
 class DataBaseSession(BaseMiddleware):
     def __init__(self, session_pool: async_sessionmaker):
         self.session_pool = session_pool

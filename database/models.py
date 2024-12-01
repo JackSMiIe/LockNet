@@ -1,7 +1,7 @@
 
 from datetime import datetime, timedelta
-from sqlalchemy import String, Boolean, DateTime, Text, func, Integer, DECIMAL,LargeBinary
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
+from sqlalchemy import String, Boolean, DateTime, Text, func, Integer, DECIMAL, LargeBinary, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session, relationship
 
 
 # Базовый класс с полями для отслеживания времени создания и обновления
@@ -44,10 +44,13 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     username: Mapped[str] = mapped_column(String(255), nullable=True)
+    rate: Mapped[int] = mapped_column(Integer, ForeignKey('product.id', ondelete="SET NULL"), nullable=True)  # Ссылка на id продукта
     status: Mapped[bool] = mapped_column(Boolean, default=False)
 
     subscription_start: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
     subscription_end: Mapped[DateTime] = mapped_column(DateTime, nullable=True)
+
+    product: Mapped["Product"] = relationship("Product", backref="users")  # Связь с продуктом
 
     def __init__(self, user_id, product: Product, username=None, status=False):
         self.user_id = user_id
@@ -55,11 +58,13 @@ class User(Base):
         self.status = status
         self.subscription_start = datetime.utcnow()
 
-        # Установка даты окончания подписки
+        # Устанавливаем дату окончания подписки в зависимости от count_day продукта
         if product.count_day:
             self.subscription_end = self.subscription_start + timedelta(days=product.count_day)
         else:
             self.subscription_end = None  # Если count_day не указан
+
+        self.product = product
 
 
 #Черный список

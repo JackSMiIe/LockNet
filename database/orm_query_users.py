@@ -7,7 +7,7 @@ from database.models import User
 
 
 # Получить все записи БД
-async def orm_get_products(session: AsyncSession):
+async def orm_get_users(session: AsyncSession):
     try:
         query = select(User)
         result = await session.execute(query)
@@ -81,3 +81,4 @@ async def count_total_users(session: AsyncSession) -> int:
     query = select(func.count()).select_from(User)
     result = await session.execute(query)
     return result.scalar()
+

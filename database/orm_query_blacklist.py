@@ -2,32 +2,33 @@ from sqlalchemy import delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from .models import BlacklistUser
+from aiogram import types
 
-# Добавить пользователя в черный список
-async def add_to_blacklist(session: AsyncSession, user_id: int, reason: str = None):
+
+async def add_to_blacklist(message: types.Message, session: AsyncSession, user_id: int, username: str = None, reason: str = None):
     try:
-        # Создаем нового пользователя для добавления в черный список
-        user = BlacklistUser(user_id=user_id, reason=reason)
+        # Проверяем, является ли session экземпляром AsyncSession
+        if not isinstance(session, AsyncSession):
+            raise ValueError(f"Ожидался объект AsyncSession, но получен {type(session)}")
+
+        # Проверяем, есть ли уже пользователь в черном списке
+        result = await session.execute(select(BlacklistUser).filter_by(user_id=user_id))
+        existing_user = result.scalar()
+
+        if existing_user:
+            # Если пользователь уже есть в черном списке
+            await message.answer(f"Пользователь с ID {user_id} уже в черном списке.")
+            return
+
+        # Если пользователя нет, добавляем его в черный список
+        user = BlacklistUser(user_id=user_id, username=username or 'Не указано', reason=reason or 'Не указано')
         session.add(user)
         await session.commit()
         print(f"Пользователь с ID {user_id} добавлен в черный список.")
     except Exception as e:
         print(f"Ошибка при добавлении пользователя с ID {user_id}: {e}")
-        await session.rollback()
-
-
-# Удалить пользователя из черного списка
-async def remove_from_blacklist(session: AsyncSession, user_id: int):
-    try:
-        # Составляем запрос на удаление
-        query = delete(BlacklistUser).where(BlacklistUser.user_id == user_id)
-        # Выполняем запрос
-        await session.execute(query)
-        await session.commit()
-        print(f"Пользователь с ID {user_id} удален.")
-    except Exception as e:
-        print(f"Ошибка при удалении пользователя с ID {user_id}: {e}")
-        await session.rollback()
+        await session.rollback()  # Откат в случае ошибки
+        await message.answer("Произошла ошибка при добавлении пользователя в черный список.")
 
 # Проверить, заблокирован ли пользователь
 async def is_blacklisted(session: AsyncSession, user_id: int) -> bool:
@@ -44,23 +45,14 @@ async def is_blacklisted(session: AsyncSession, user_id: int) -> bool:
 # Получить всех пользователей в черном списке
 async def get_all_blacklisted_users(session: AsyncSession):
     try:
-        query = select(BlacklistUser)
-        result = await session.execute(query)
-        users = result.scalars().all()
+        # Получаем список пользователей из черного списка
+        result = await session.execute(select(BlacklistUser))
+        users = result.scalars().all()  # Получаем все объекты BlacklistUser
 
-        if users:
-            # Формируем строку с перечнем всех пользователей и их данных
-            user_list = "\n".join([
-                f"ID: {user.user_id}, Причина: {user.reason}"
-                for user in users
-            ])
-        else:
-            user_list = "Черный список пуст."
-
-        return user_list
+        return users
     except Exception as e:
-        print(f"Ошибка при получении пользователей из черного списка: {e}")
-        return "Произошла ошибка при получении данных."
+        print(f"Ошибка при получении пользователей: {e}")
+        return []
 
 # Количество клиентов в черном списке
 async def count_blacklist_users(session: AsyncSession) -> int:
@@ -97,11 +89,11 @@ async def add_user_to_blacklist(session: AsyncSession, user_id: int, username: s
 async def remove_user_from_blacklist(session: AsyncSession, user_id: int):
     try:
         # Получаем пользователя из черного списка по ID
-        user_to_remove = await session.execute(select(BlacklistUser).filter_by(user_id=user_id))
-        user = user_to_remove.scalar_one_or_none()
+        result = await session.execute(select(BlacklistUser).filter_by(user_id=user_id))
+        user = result.scalar_one_or_none()
 
         if user is None:
-            return "Пользователь не найден в черном списке."
+            return f"Пользователь с ID {user_id} не найден в черном списке."
 
         # Удаляем пользователя
         await session.delete(user)
@@ -110,5 +102,10 @@ async def remove_user_from_blacklist(session: AsyncSession, user_id: int):
         return f"Пользователь с ID {user_id} успешно удален из черного списка."
 
     except Exception as e:
-        print(f"Ошибка при удалении пользователя из черного списка: {e}")
-        return "Произошла ошибка при удалении пользователя."
+        # Логируем ошибку
+        print(f"Ошибка при удалении пользователя с ID {user_id} из черного списка: {e}")
+
+        # В случае ошибки откатываем транзакцию
+        await session.rollback()
+
+        return "Произошла ошибка при удалении пользователя из черного списка."

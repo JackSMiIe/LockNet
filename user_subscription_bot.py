@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot_instance import bot
 from database import orm_query_users,orm_query_trial_product
 
+
+# Проверка окончания подписки клиентов и отключения их!
 async def check_subscriptions(session: AsyncSession):
     while True:
         print("Запуск проверки подписок...")
         try:
             # Получаем всех пользователей
-            users = await orm_query_users.orm_get_products(session)
+            users = await orm_query_users.orm_get_users(session)
 
             # Если нет пользователей, просто пропускаем проверку
             if not users:
@@ -60,6 +62,8 @@ async def check_subscriptions(session: AsyncSession):
 
         # Ожидание перед следующей проверкой
         await asyncio.sleep(3600)  # Проверяем подписки каждый час
+
+
 # Использовали ли клиент Пробную подписку
 async def check_subscriptions_trial(session: AsyncSession):
     while True:

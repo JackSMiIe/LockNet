@@ -3,11 +3,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import select
+from sqlalchemy import select, delete
 import asyncio
 import os
 import logging
-from database.models import Product, User, UsedTrialUser
+from database.models import Product, User, UsedTrialUser, TrialUser
 from aiogram.types import LabeledPrice, FSInputFile
 from bot_instance import bot
 from datetime import datetime, timedelta
@@ -75,12 +75,11 @@ async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery,
 
 # # Обработчик успешной оплаты
 async def process_successful_payment(message: types.Message, state, session: AsyncSession):
-
     user_id = message.from_user.id
     username = message.from_user.username or f"user_{user_id}"
 
+    # Проверка, что данные в платеже правильные
     try:
-        # Проверка payload
         if not message.successful_payment.invoice_payload.startswith('wtf'):
             await message.answer("Некорректные данные в платеже.")
             return
@@ -92,10 +91,59 @@ async def process_successful_payment(message: types.Message, state, session: Asy
         product_query = select(Product).where(Product.id == product_id)
         product_result = await session.execute(product_query)
         product = product_result.scalar()
+
         if not product:
             await message.answer("Произошла ошибка: продукт не найден.")
             return
 
+    except Exception as e:
+        await message.answer(f"Ошибка при проверке платежа: {e}")
+        return
+
+    # Логика работы с пользователем (удаление из TrialUser и переход на платную подписку)
+    try:
+        # Получаем пользователя, который хочет перейти на платную подписку
+        user_result = await session.execute(select(TrialUser).filter(TrialUser.user_id == user_id))
+        user = user_result.scalars().first()
+
+        if user:
+            # Если пользователь найден в TrialUser
+            print(f"Пользователь {user.username} с ID {user.user_id} найден в TrialUser.")
+
+            # Удаляем пользователя из pivpn
+            pivpn_username = f"user_{user.user_id}"
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "sudo", "-S", "/usr/local/bin/pivpn", "-r", "-n", pivpn_username, "-y",
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate(input=b'\n')
+
+                if process.returncode == 0:
+                    print(f"(Trial) Пользователь {user.username} с ID {user.user_id} успешно удален из pivpn.\nВывод: {stdout.decode()}")
+
+                    # Теперь удаляем его из таблицы TrialUser
+                    await session.execute(delete(TrialUser).where(TrialUser.user_id == user.user_id))
+                    await session.commit()
+
+                    print(f"(Trial) Пользователь {user.username} с ID {user.user_id} удален из базы данных TrialUser.")
+
+                else:
+                    print(f"(Trial) Ошибка при удалении пользователя {user.username} с ID {user.user_id} из pivpn. Ошибка: {stderr.decode()}")
+
+            except Exception as e:
+                print(f"(Trial) Ошибка при удалении пользователя {user.username} с ID {user.user_id} из pivpn: {e}")
+        else:
+            print(f"Пользователь с ID {user_id} не найден в TrialUser. Возможно, он уже не в пробной версии.")
+            # Дополнительно: можно реализовать логику для перехода на платную подписку
+
+    except Exception as e:
+        print(f"(Trial) Общая ошибка при обработке пользователя: {e}")
+
+    # Работа с платной подпиской
+    try:
         # Проверка существования пользователя
         user_query = select(User).where(User.user_id == user_id)
         user_result = await session.execute(user_query)
@@ -117,6 +165,7 @@ async def process_successful_payment(message: types.Message, state, session: Asy
             formatted_date = existing_user.subscription_end.strftime("%d.%m.%Y")
             await message.answer(f"Подписка успешно продлена до {formatted_date}.")
         else:
+
             # Создание нового пользователя
             new_user = User(
                 user_id=user_id,
@@ -130,7 +179,11 @@ async def process_successful_payment(message: types.Message, state, session: Asy
             new_user.subscription_end = datetime.utcnow() + timedelta(days=product.count_day)
 
             used_trial_user = UsedTrialUser(user_id=user_id)
-            session.add(used_trial_user)
+            await session.merge(used_trial_user)
+
+            session.add(product)
+            new_user.product = product
+
 
             session.add(new_user)
             await session.commit()
@@ -168,6 +221,10 @@ async def activate_vpn_user(user):
         print(f"Время ожидания команды активации пользователя {username} истекло.")
     except Exception as e:
         print(f"Произошла ошибка при активации пользователя {username}: {e}")
+
+
+
+
 # генерация кода
 async def generate_and_send_qr(message: types.Message, state: FSMContext, session: AsyncSession):
     current_state = await state.get_state()
@@ -185,13 +242,14 @@ async def generate_and_send_qr(message: types.Message, state: FSMContext, sessio
 
             if existing_user:
                 # Пользователь уже зарегистрирован — обновляем только подписку
-                await message.answer("Подписка успешно продлена.")
+                # await message.answer("Подписка успешно продлена.")
                 await state.clear()
             else:
                 # Добавляем нового пользователя в базу данных, если он еще не зарегистрирован
-                new_user = User(user_id=user_id, username=message.from_user.username, status=True)
-                session.add(new_user)
-                await session.commit()
+                # new_user = User(user_id=user_id, username=message.from_user.username, status=True)
+                # session.add(new_user)
+                # print('ДОБАВЛЕН')
+                # await session.commit()
                 await message.answer("Вы успешно зарегистрированы.")
 
             # Асинхронное добавление нового пользователя с помощью команды pivpn
