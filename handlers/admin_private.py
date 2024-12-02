@@ -5,11 +5,11 @@ from aiogram.filters import Command, or_f, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.util import await_only
 
-from database.models import TrialProduct
+from handlers.admin_operations import AdminStates, process_remove_admin_id
+
 from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
-    count_promotion_products, orm_get_product
+    count_promotion_products
 from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users, \
     add_user_to_blacklist, remove_user_from_blacklist
 from database.orm_query_free_user import count_free_users
@@ -18,6 +18,7 @@ from database.orm_query_trial_product import get_trial_products, add_trial_produ
 from database.orm_query_trial_users import count_trial_users
 from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users,orm_get_users
 from filters.chat_types import ChatTypeFilter, IsAdmin
+from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
 
@@ -671,3 +672,41 @@ async def add_user_black(callback: types.CallbackQuery, session: AsyncSession):
         print(f"Ошибка при добавлении пользователя в ЧС: {e}")
         await callback.answer("Произошла ошибка при добавлении пользователя в черный список.")
 
+
+"""Администраторы"""
+@admin_router.message(F.text == '🔑 Администраторы')
+async def admin_panel(message: types.Message, session: AsyncSession):
+    await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
+        'Добавить': 'addAdmin_',
+        'Удалить': 'removeAdmin_',
+        'Список': 'listAdmins_',
+    }))
+# Добавление Администратора
+@admin_router.callback_query(F.data.startswith('addAdmin_'))
+async def handle_add_admin(callback_query: types.CallbackQuery, state: FSMContext):
+    """Хэндлер для удаления администратора."""
+    await add_admin(callback_query,state)
+@admin_router.message(AdminStates.waiting_for_admin_id)
+async def process_admin_id_message(message: types.Message, state: FSMContext):
+    """Обрабатывает введенный ID администратора."""
+    await process_admin_id(message, state)
+    await message.answer('Выберите действие:', reply_markup=ADMIN_KB)
+
+# Удаление Администратора
+@admin_router.callback_query(F.data.startswith('removeAdmin_'))
+async def handle_remove_admin(callback_query: types.CallbackQuery,state: FSMContext):
+    """Хэндлер для удаления администратора."""
+    await remove_admin(callback_query,state)
+
+@admin_router.message(AdminStates.waiting_dell_for_admin_id)
+async def process_admin_id_message(message: types.Message, state: FSMContext):
+    """Обрабатывает введенный ID администратора."""
+    await process_remove_admin_id(message, state)
+    await message.answer('Выберите действие:',reply_markup=ADMIN_KB)
+
+
+# Список Администраторов
+@admin_router.callback_query(F.data.startswith('listAdmins_'))
+async def handle_list_admins(callback_query: types.CallbackQuery):
+    """Хэндлер для удаления администратора."""
+    await list_admins(callback_query)
