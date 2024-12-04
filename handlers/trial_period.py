@@ -60,7 +60,7 @@ async def process_trial_subscription(callback: CallbackQuery, session: AsyncSess
         await callback.message.answer(
             f"Вы успешно активировали пробный период на {product.count_day} дней. Спасибо, {username}!"
         )
-        await generate_and_send_qr(callback.message, session)
+        await generate_and_send_qr(callback.message, session,user_id)
         return
 
 
@@ -69,8 +69,8 @@ async def process_trial_subscription(callback: CallbackQuery, session: AsyncSess
         return await callback.message.answer(f"Произошла ошибка: {str(e)}")
 
 
-async def generate_and_send_qr(message: types.Message, session: AsyncSession):
-    user_id = message.from_user.id
+async def generate_and_send_qr(message: types.Message, session: AsyncSession,user_id):
+    user_id = user_id # Правки были тут user_id
     username = f"user_{user_id}"
     qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png"
     config_path = f"/home/jacksmile/configs/{username}.conf"

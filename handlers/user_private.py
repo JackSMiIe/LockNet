@@ -62,6 +62,7 @@ async def trial_period_cmd(message: types.Message, session: AsyncSession, state:
 
     # Если продукты есть, отправляем их с inline-кнопками
     for product in trial_products:
+        print(product.id)
         await message.answer(
             f'<strong>{product.name}</strong>\n'
             f'Кол-во дней: {product.count_day}\n',

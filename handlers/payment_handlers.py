@@ -12,6 +12,7 @@ from aiogram.types import LabeledPrice, FSInputFile
 from bot_instance import bot
 from datetime import datetime, timedelta
 
+from database.orm_query_used_trial_user import get_all_users
 from kbds.inline import get_inlineMix_btns
 
 
@@ -178,8 +179,13 @@ async def process_successful_payment(message: types.Message, state, session: Asy
             new_user.subscription_start = datetime.utcnow()
             new_user.subscription_end = datetime.utcnow() + timedelta(days=product.count_day)
 
-            used_trial_user = UsedTrialUser(user_id=user_id)
-            await session.merge(used_trial_user)
+            users = await get_all_users(session) # Проверка на Триал
+            if any(user.user_id == user_id for user in users):
+                print("Вы в списке used_trial_user")
+            else:
+                used_trial_user = UsedTrialUser(user_id=user_id)
+                session.add(used_trial_user)  # Добавляем нового пользователя
+                print("Пользователь добавлен used_trial_user")
 
             session.add(product)
             new_user.product = product

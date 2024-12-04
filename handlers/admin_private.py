@@ -690,7 +690,6 @@ async def handle_add_admin(callback_query: types.CallbackQuery, state: FSMContex
 async def process_admin_id_message(message: types.Message, state: FSMContext):
     """Обрабатывает введенный ID администратора."""
     await process_admin_id(message, state)
-    await message.answer('Выберите действие:', reply_markup=ADMIN_KB)
 
 # Удаление Администратора
 @admin_router.callback_query(F.data.startswith('removeAdmin_'))
@@ -702,7 +701,6 @@ async def handle_remove_admin(callback_query: types.CallbackQuery,state: FSMCont
 async def process_admin_id_message(message: types.Message, state: FSMContext):
     """Обрабатывает введенный ID администратора."""
     await process_remove_admin_id(message, state)
-    await message.answer('Выберите действие:',reply_markup=ADMIN_KB)
 
 
 # Список Администраторов

@@ -31,21 +31,28 @@ async def process_admin_id(message: types.Message, state: FSMContext):
     """Обрабатывает введенный ID администратора и добавляет его."""
     if message.from_user.id not in ADMIN_LIST:
         await message.answer("У вас нет прав для выполнения этой команды.")
-        await state.clear()  # Завершаем состояние
-        return
+        return  # Прерываем выполнение, но состояние не сбрасываем.
 
     try:
         new_admin_id = int(message.text)
+
+        # Проверка, что ID состоит из 8-12 цифр
+        if len(str(new_admin_id)) < 8 or len(str(new_admin_id)) > 12:
+            await message.answer("ID должен быть числом длиной от 8 до 12 цифр.")
+            return  # Прерываем выполнение, но состояние не сбрасываем
+
         if new_admin_id in ADMIN_LIST:
             await message.answer("Этот пользователь уже является администратором.")
         else:
             ADMIN_LIST.append(new_admin_id)
             update_env_admin_list()
             await message.answer(f"Пользователь {new_admin_id} добавлен в список администраторов.")
-    except ValueError:
-        await message.answer("Пожалуйста, укажите действительный ID пользователя.")
 
-    await state.clear()  # Завершаем состояние после обработки
+    except ValueError:
+        await message.answer("Пожалуйста, укажите действительный ID пользователя, или введите 'отмена'")
+        return  # Прерываем выполнение в случае ошибки, но состояние не сбрасываем
+
+    await state.clear()  # Завершаем состояние только после успешной обработки
 
 
 async def remove_admin(callback_query: types.CallbackQuery, state: FSMContext):
@@ -63,21 +70,29 @@ async def process_remove_admin_id(message: types.Message, state: FSMContext):
     """Обрабатывает введенный ID администратора и удаляет его."""
     if message.from_user.id not in ADMIN_LIST:
         await message.answer("У вас нет прав для выполнения этой команды.")
-        await state.clear()  # Завершаем состояние
-        return
+        return  # Прерываем выполнение, но состояние не сбрасываем.
 
     try:
         admin_id_to_remove = int(message.text)
+
+        # Проверка, что ID состоит из 8-12 цифр
+        if len(str(admin_id_to_remove)) < 8 or len(str(admin_id_to_remove)) > 12:
+            await message.answer("ID должен быть числом длиной от 8 до 12 цифр.")
+            return  # Прерываем выполнение, но состояние не сбрасываем
+
         if admin_id_to_remove not in ADMIN_LIST:
             await message.answer("Этот пользователь не является администратором.")
         else:
             ADMIN_LIST.remove(admin_id_to_remove)
             update_env_admin_list()
             await message.answer(f"Пользователь {admin_id_to_remove} удален из списка администраторов.")
-    except ValueError:
-        await message.answer("Пожалуйста, укажите действительный ID пользователя.")
 
-    await state.clear()  # Завершаем состояние после обработки
+    except ValueError:
+        await message.answer("Пожалуйста, укажите действительный ID пользователя, или введите 'отмена'")
+        return  # Прерываем выполнение в случае ошибки, но состояние не сбрасываем
+
+    await state.clear()  # Завершаем состояние только после успешной обработки
+
 
 
 async def list_admins(callback_query: types.CallbackQuery):
