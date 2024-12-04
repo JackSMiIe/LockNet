@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from database.orm_query import orm_get_products
 from database.orm_query_trial_product import get_trial_products
+from database.orm_query_trial_users import get_trial_subscription_info
+from database.orm_query_users import get_subscription_info, send_config_and_qr_button
 # Фильтры и кнопки
 from filters.chat_types import ChatTypeFilter
 from kbds.inline import get_inlineMix_btns
@@ -38,11 +40,48 @@ async def start_cmd(message: types.Message):
             "Способы оплаты",
             "О сервере",
             "Инструкции",
-            "Пробный период",  # Добавляем кнопку для пробного периода
+            "Пробный период",
+            "Личный кабинет",# Добавляем кнопку для пробного периода
             placeholder="Что вас интересует?",
-            sizes=(2, 2, 1)  # Настраиваем размеры (последняя строка будет отдельной)
+            sizes=(2, 2, 2)  # Настраиваем размеры (последняя строка будет отдельной)
         ),
     )
+
+
+@user_private_router.message(F.text.casefold() == "личный кабинет")
+async def personal_cabinet(message: types.Message, session: AsyncSession):
+    user_id = message.from_user.id
+    try:
+        # Проверяем пробную подписку
+        trial_info = await get_trial_subscription_info(user_id, session)
+
+        if "не находитесь в пробной подписке" in trial_info:
+            # Если пользователя нет в пробной подписке, проверяем основную таблицу
+            dashboard = await get_subscription_info(user_id, session)
+            if "Пользователь не найден" in dashboard:
+                # Если пользователя нет и в основной таблице
+                await message.answer("<b>Вы еще не зарегистрированы.</b>",parse_mode='HTML')
+            else:
+                # Проверяем, активна ли подписка
+                if "Активна" in dashboard:
+                    await message.answer(dashboard)
+                    # Если подписка активна, вызываем функцию для отправки конфиг-файла и кнопки
+                    await send_config_and_qr_button(message, user_id)
+                else:
+                    await message.answer("<b>Ваша подписка не активна.</b>",parse_mode='HTML')
+        else:
+            # Если пользователь найден в таблице TrialUser
+            await message.answer(trial_info)
+            # Вызываем функцию для отправки конфиг-файла и кнопки только в случае, если пробная подписка активна
+            if "Активна" in trial_info:
+                await send_config_and_qr_button(message, user_id)
+            else:
+                await message.answer("Ваша пробная подписка не активна. Конфиг не может быть отправлен.")
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при получении информации о подписке. Попробуйте позже. Ошибка: {e}")
+
+
 
 # Обработчик команды "Пробный период"
 @user_private_router.message(F.text.casefold() == "пробный период")
@@ -94,8 +133,9 @@ async def back_callback(callback_query: types.CallbackQuery, state: FSMContext):
             "О сервере",
             "Инструкции",
             "Пробный период",
+            "Личный кабинет",
             placeholder="Что вас интересует?",
-            sizes=(2, 2, 1)
+            sizes=(2, 2, 2)
         ),
     )
 

@@ -12,6 +12,7 @@ from aiogram.types import LabeledPrice, FSInputFile
 from bot_instance import bot
 from datetime import datetime, timedelta
 
+from database.orm_query_free_user import update_free_user_status
 from database.orm_query_used_trial_user import get_all_users
 from kbds.inline import get_inlineMix_btns
 
@@ -166,7 +167,7 @@ async def process_successful_payment(message: types.Message, state, session: Asy
             formatted_date = existing_user.subscription_end.strftime("%d.%m.%Y")
             await message.answer(f"Подписка успешно продлена до {formatted_date}.")
         else:
-
+            session.add(product)
             # Создание нового пользователя
             new_user = User(
                 user_id=user_id,
@@ -187,8 +188,8 @@ async def process_successful_payment(message: types.Message, state, session: Asy
                 session.add(used_trial_user)  # Добавляем нового пользователя
                 print("Пользователь добавлен used_trial_user")
 
-            session.add(product)
-            new_user.product = product
+            # session.add(product)
+            # new_user.product = product
 
 
             session.add(new_user)
@@ -218,8 +219,12 @@ async def activate_vpn_user(user):
         )
         stdout, stderr = await process.communicate(input=b'\n')
 
+
         if process.returncode == 0:
+            user.status = True
             print(f"Пользователь {user.username} с ID {user.user_id} успешно активирован.\nВывод: {stdout.decode()}")
+
+
         else:
             print(f"Ошибка активации пользователя {username}. Код возврата: {process.returncode}\n"
                   f"Ошибка: {stderr.decode()}")

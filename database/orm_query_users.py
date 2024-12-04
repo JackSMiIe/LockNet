@@ -1,6 +1,14 @@
+import os
+
+from aiogram.types import FSInputFile
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+from aiogram import types
+
+from bot_instance import bot
 from database.models import User
+from kbds.inline import get_inlineMix_btns
 
 
 # Настройка логирования
@@ -82,3 +90,64 @@ async def count_total_users(session: AsyncSession) -> int:
     result = await session.execute(query)
     return result.scalar()
 
+
+async def get_subscription_info(user_id: int, session: AsyncSession) -> str:
+    try:
+        # Запрос для получения информации о пользователе с продуктом
+        async with session.begin():
+            result = await session.execute(
+                select(User).options(joinedload(User.product)).where(User.user_id == user_id)
+            )
+            user = result.scalar_one_or_none()
+
+        if not user:
+            return "Пользователь не найден."
+
+        # Формирование информации о подписке
+        subscription_status = "Активна" if user.status else "Неактивна"
+        username = user.username if user.username else "Не указано"
+        product_name = user.product.name if user.product and user.product.name else "Не привязан"
+
+        start = user.subscription_start.strftime("%d-%m-%Y") if user.subscription_start else "Не указано"
+        end = user.subscription_end.strftime("%d-%m-%Y") if user.subscription_end else "Не указано"
+
+        return  (
+            f"Добро пожаловать, {username}!\n\n"
+            f"Ваш статус подписки: {subscription_status}\n"
+            f"Ваш продукт: {product_name}\n"
+            f"Подписка началась: {start}\n"
+            f"Подписка заканчивается: {end}\n"
+        )
+
+
+    except Exception as e:
+        return f"Произошла ошибка при получении информации о подписке. Попробуйте позже. Ошибка: {e}"
+# Отправка Конфигов в ЛК
+async def send_config_and_qr_button(message: types.Message, user_id: int):
+    try:
+        username = f"user_{user_id}"
+        config_path = f"/home/jacksmile/configs/{username}.conf"
+        qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png"
+
+        # Проверяем, существуют ли файлы конфигурации и QR-кода
+        if not os.path.exists(config_path):
+            await message.answer("Конфигурационный файл не найден.")
+            return
+
+        if not os.path.exists(qr_path):
+            await message.answer("QR-код не найден.")
+            return
+
+        # Отправляем конфиг-файл пользователю
+        document = FSInputFile(config_path)
+        await bot.send_document(chat_id=message.chat.id, document=document)
+
+        # Отправляем сообщение с кнопкой для показа QR-кода
+        await message.answer(
+            f"<strong>{message.from_user.first_name}</strong>, ваш конфиг файл.",
+            reply_markup=get_inlineMix_btns(btns={"Показать QR": f"qr_{user_id}"})
+        )
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при отправке конфигурации: {str(e)}")
+        print(f"Ошибка при отправке конфигурации: {e}")

@@ -58,3 +58,33 @@ async def remove_trial_user(session: AsyncSession, user_id: int):
     except Exception as e:
         print(f"(Trial) Ошибка при обработке пользователя с ID {user_id}: {e}")
         return f"Произошла ошибка при удалении пользователя с ID {user_id} из TrialUser."
+
+# ЛК триал подписки
+async def get_trial_subscription_info(user_id: int, session: AsyncSession) -> str:
+    try:
+        # Запрос для получения информации о пользователе с пробной подпиской
+        async with session.begin():
+            result = await session.execute(
+                select(TrialUser).where(TrialUser.user_id == user_id)
+            )
+            trial_user = result.scalar_one_or_none()
+
+        if not trial_user:
+            return "Вы не находитесь в пробной подписке."
+
+        # Формирование информации о пробной подписке
+        trial_status = "Активна" if trial_user.is_active else "Неактивна"
+        trial_start = trial_user.trial_start.strftime("%d-%m-%Y")
+        trial_end = trial_user.trial_end.strftime("%d-%m-%Y")
+        username = trial_user.username if trial_user.username else "Не указано"
+
+        return (
+            f"Добро пожаловать, {username}!\n\n"
+            f"Вы находитесь на пробной подписке.\n\n"
+            f"Статус: {trial_status}\n"
+            f"Подписка началась: {trial_start}\n"
+            f"Подписка заканчивается: {trial_end}\n"
+        )
+
+    except Exception as e:
+        return f"Произошла ошибка при получении информации о пробной подписке. Попробуйте позже. Ошибка: {e}"
