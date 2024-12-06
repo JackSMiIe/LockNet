@@ -122,5 +122,25 @@ class UsedTrialUser(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
 
-    # config_file: Mapped[str] = mapped_column(Text, nullable=True)  # Содержимое config.conf
-    # qr_code: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)  # Поле для хранения QR-кода в бинарном виде
+# Поддержка
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)  # Уникальный ID обращения
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)  # Telegram ID пользователя
+    username: Mapped[str | None] = mapped_column(String(150), nullable=True)  # Имя пользователя (если есть)
+    issue_description: Mapped[str] = mapped_column(Text, nullable=False)  # Текст обращения
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)  # Время создания обращения
+    is_resolved: Mapped[bool] = mapped_column(Boolean, default=False)  # Статус обращения
+    admin_response: Mapped[str | None] = mapped_column(Text, nullable=True)  # Ответ администратора (если есть)
+
+    def __init__(self, user_id: int, username: str | None, issue_description: str):
+        self.user_id = user_id
+        self.username = username
+        self.issue_description = issue_description
+
+    def __repr__(self):
+        return (
+            f"<SupportTicket(id={self.id}, user_id={self.user_id}, username={self.username}, "
+            f"created_at={self.created_at}, is_resolved={self.is_resolved})>"
+        )

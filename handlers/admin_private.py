@@ -1,4 +1,3 @@
-from itertools import product
 
 from aiogram import Router, types, F
 from aiogram.filters import Command, or_f, StateFilter
@@ -6,6 +5,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot_instance import bot
+from database.orm_support import get_all_users_with_tickets, get_all_users_with_tickets_false, \
+    get_all_users_with_tickets_true
 from handlers.admin_operations import AdminStates, process_remove_admin_id
 
 from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
@@ -19,6 +21,7 @@ from database.orm_query_trial_users import count_trial_users
 from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users,orm_get_users
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
+from handlers.user_private_support import resolve_ticket, send_answer_to_client
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
 
@@ -28,9 +31,10 @@ ADMIN_KB = get_keyboard(
     "🚫 ЧС",                # Кнопка для управления черным списком
     "👤 Пользователи",      # Кнопка для управления пользователями
     "📊 Статистика",        # Кнопка для просмотра статистики
-    "🔑 Администраторы",      # Кнопка для управления ролями
+    "🔑 Администраторы",
+    "Support",# Кнопка для управления ролями
     placeholder="Выберите действие",
-    sizes=(3, 2),         # Размеры для упорядочивания кнопок
+    sizes=(3, 3),         # Размеры для упорядочивания кнопок
 )
 
 admin_router = Router()
@@ -40,10 +44,156 @@ admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 @admin_router.message(Command("admin"))
 async def admin_features(message: types.Message):
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
-#-----------------
-"""ЧС"""
 
-# Получить черный список
+
+"""Поддержка"""
+@admin_router.message(or_f(Command("support"), (F.text.casefold() == "support")))
+async def black_list(message: types.Message):
+    await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
+        'Список проблем': 'support_list_',
+        'Завершённые': 'true_list_',
+
+    }))
+
+
+@admin_router.callback_query(F.data == 'true_list_')
+async def show_support(callback_query: types.CallbackQuery, session: AsyncSession):
+    try:
+        # Получаем всех пользователей с открытыми обращениями (status = True или аналогичный флаг)
+        users = await get_all_users_with_tickets_true(session)
+
+        # Проверяем, есть ли пользователи с обращениями
+        if users:
+            # Если есть, выводим информацию по каждому из них
+            for user in users:
+                user_info = (
+                    f"<b>№ Обращения:</b> {user.id}\n"
+                    f"<b>ID:</b> {user.user_id}\n"
+                    f"<b>Username:</b> @{user.username}\n"
+                    f"<b>Причина:</b> {user.issue_description}\n"
+                )
+                await callback_query.message.answer(
+                    f"<b>Обращение:</b>\n{user_info}",
+                    parse_mode='HTML'
+                )
+        else:
+            # Если нет пользователей с обращениями
+            await callback_query.message.answer("Нет пользователей с активными обращениями.")
+
+    except Exception as e:
+        # Обрабатываем возможные ошибки и логируем их
+        print(f"Ошибка при получении тикетов: {e}")
+        await callback_query.message.answer("Произошла ошибка при загрузке обращений. Попробуйте позже.")
+
+
+# Нерешенные задачи
+@admin_router.callback_query(F.data == 'support_list_')
+async def show_support(callback_query: types.CallbackQuery, session: AsyncSession):
+    users = await get_all_users_with_tickets_false(session)
+    if users:
+        for user in users:
+            user_info = (
+                f"№ Обращения: {user.id}\n"
+                f"ID: {user.user_id}\n"
+                f"Username: {user.username}\n"
+                f"Причина: {user.issue_description}\n"
+            )
+            # Создаем callback_data, включающую ticket_id, user_id и описание проблемы
+            callback_data_answer = f"answer_{user.id}_{user.user_id}_{user.issue_description}"
+            callback_data_complete = f"complete_{user.user_id}_{user.issue_description}"
+
+            await callback_query.message.answer(
+                f"<b>Обращение:</b>\n{user_info}",
+                parse_mode='HTML',
+                reply_markup=get_inlineMix_btns(btns={
+                    'Ответить': callback_data_answer,
+                    'Спам': callback_data_complete,
+                })
+            )
+    else:
+        await callback_query.message.answer("Нет пользователей с нерешенными обращениями.")
+
+
+# Ответ Администратора
+class TicketAnswerState(StatesGroup):  # Наследуем от StatesGroup
+    waiting_for_answer = State()
+
+
+# Запуск состояния FSM
+@admin_router.callback_query(F.data.startswith('answer_'))
+async def handle_answer_ticket(callback_query: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+    # Извлекаем ticket_id, user_id и issue_description из callback_data
+    _, ticket_id, user_id, issue_description = callback_query.data.split('_', 3)
+
+    # Сохраняем ticket_id, user_id и описание проблемы в FSM, чтобы они были доступны при ответе
+    await state.update_data(ticket_id=ticket_id, user_id=user_id, issue_description=issue_description)
+
+    # Запрашиваем у администратора текст ответа
+    await callback_query.message.answer("Введите ваш ответ на обращение клиента:")
+
+    # Переходим в состояние ожидания ответа от администратора
+    await state.set_state(TicketAnswerState.waiting_for_answer)
+
+
+# Обработка сообщения администратора с ответом
+@admin_router.message(TicketAnswerState.waiting_for_answer)
+async def admin_reply_to_ticket(message: types.Message, state: FSMContext,session: AsyncSession):
+    # Получаем данные из FSM
+    user_data = await state.get_data()
+    ticket_id = user_data.get('ticket_id')
+    user_id = user_data.get('user_id')
+    issue_description = user_data.get('issue_description')
+
+    if not ticket_id or not user_id or not issue_description:
+        await message.answer("Ошибка: Не удалось найти данные тикета.")
+        return
+
+    admin_message = message.text  # Ответ администратора
+
+    try:
+        # Отправляем ответ клиенту
+        response_message = await send_answer_to_client(ticket_id,user_id, admin_message,issue_description)
+
+        # Информируем администратора о том, что ответ отправлен и тикет закрыт
+        await message.answer(f"Ответ на Обращения №{ticket_id} отправлен клиенту: {response_message}")
+
+        # Закрытие тикета (если нужно)
+        # await close_ticket_in_database(ticket_id, session)
+
+        # Завершаем состояние FSM
+        await resolve_ticket(session, user_id, issue_description)
+
+        await state.clear()
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при отправке ответа: {str(e)}")
+
+
+# Функция для закрытия тикета (если необходимо)
+
+
+ # Spam
+@admin_router.callback_query(F.data.startswith('complete_'))
+async def complete_support(callback_query: types.CallbackQuery, session: AsyncSession):
+    # Извлекаем user_id и issue_description из callback_data
+    _, user_id, issue_description = callback_query.data.split('_', 2)
+
+    # Преобразуем user_id в integer
+    user_id = int(user_id)
+
+    # Выполняем функцию resolve_ticket, чтобы пометить задачу как решенную
+    success = await resolve_ticket(session, user_id, issue_description)
+
+    if success:
+        await callback_query.message.answer("Задача успешно решена.")
+    else:
+        await callback_query.message.answer("Задача не найдена или не требует решения.")
+
+
+
+
+
+"""ЧС"""
 # Класс для ввода текста(состояние)
 class TextInputStates(StatesGroup):
     waiting_for_text = State()
@@ -518,7 +668,7 @@ async def statistic(message: types.Message, session: AsyncSession):
 
 """Черный список (ЧС)"""
 @admin_router.message(F.text == '🚫 ЧС')
-async def black_list(message: types.Message, session: AsyncSession):
+async def black_list(message: types.Message):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
         'Список клиентов(ЧС)': 'get_users_',
         'Добавить клиента': 'add_users_',
@@ -675,7 +825,7 @@ async def add_user_black(callback: types.CallbackQuery, session: AsyncSession):
 
 """Администраторы"""
 @admin_router.message(F.text == '🔑 Администраторы')
-async def admin_panel(message: types.Message, session: AsyncSession):
+async def admin_panel(message: types.Message):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
         'Добавить': 'addAdmin_',
         'Удалить': 'removeAdmin_',
