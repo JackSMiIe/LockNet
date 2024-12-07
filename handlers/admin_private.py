@@ -18,7 +18,8 @@ from database.orm_query_free_user import count_free_users
 from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
     count_trial_products
 from database.orm_query_trial_users import count_trial_users
-from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users,orm_get_users
+from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users, \
+    orm_get_users, show_all_users, get_active
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
 from handlers.user_private_support import resolve_ticket, send_answer_to_client
@@ -46,9 +47,160 @@ async def admin_features(message: types.Message):
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
 
 
+"""Пользователи"""
+class AdminState(StatesGroup):
+    waiting_for_message = State()
+    waiting_for_message_all = State()
+
+
+@admin_router.message(or_f(Command("users"), (F.text == "👤 Пользователи")))
+async def users_list(message: types.Message):
+    await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
+        'Управление клиентами': 'users_list_',
+        'Рассылка': 'newsletter_',
+
+    }))
+# Показать всех клиентов
+@admin_router.callback_query(F.data == 'users_list_')
+async def handle_show_users(callback_query: types.CallbackQuery, session: AsyncSession):
+    await show_all_users(callback_query, session)
+# Кнопка Управление клиентами
+@admin_router.callback_query(F.data.startswith('write_user_'))
+async def handle_write_user(callback_query: types.CallbackQuery, state: FSMContext):
+    try:
+        # Извлечение ID пользователя из callback_data
+        user_id = callback_query.data.split('_')[-1]
+
+        # Сохраняем ID пользователя в состоянии
+        await state.update_data(target_user_id=user_id)
+
+        # Запрашиваем ввод сообщения
+        await callback_query.message.answer(
+            f"Введите сообщение для пользователя с ID {user_id}:"
+        )
+
+        # Переход в состояние ожидания сообщения
+        await state.set_state(AdminState.waiting_for_message)
+
+    except Exception as e:
+        await callback_query.message.answer(f"Произошла ошибка: {e}")
+# Кнопка Управление клиентами
+@admin_router.message(AdminState.waiting_for_message)
+async def handle_admin_message(message: types.Message,state: FSMContext):
+    try:
+        # Получаем сохраненные данные (ID целевого пользователя)
+        data = await state.get_data()
+        target_user_id = data.get("target_user_id")
+
+        if not target_user_id:
+            await message.answer("Ошибка: пользователь не выбран.")
+            return
+
+        # Отправка сообщения целевому пользователю
+        await bot.send_message(
+            chat_id=target_user_id,
+            text=f"<b>Сообщение от администратора:</b>\n{message.text}",parse_mode='HTML'
+        )
+
+        # Подтверждение отправки сообщения
+        await message.answer("Сообщение успешно отправлено!")
+
+        # Сбрасываем состояние
+        await state.clear()
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при отправке сообщения: {e}")
+
+@admin_router.callback_query(F.data == 'newsletter_')
+async def handle_newsletter(callback_query: types.CallbackQuery):
+    # Кнопки для выбора шаблона рассылки
+    template_buttons = get_inlineMix_btns(btns={
+        'Шаблон 1: На сервере ведутся работы': 'template_1',
+        'Шаблон 2: Обновление на сервере': 'template_2',
+        'Шаблон 3: Сервер работает': 'template_3',
+        'Свой шаблон': 'custom_template',  # Добавляем кнопку для собственного шаблона
+    })
+    await callback_query.message.answer('Выберите шаблон для рассылки:', reply_markup=template_buttons)
+# Обработчик для выбора шаблона
+@admin_router.callback_query(F.data.in_(['template_1', 'template_2', 'template_3', 'custom_template']))
+async def handle_template_selection(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    # Сохраняем выбранный шаблон в состоянии
+    selected_template = callback_query.data
+    await state.update_data(selected_template=selected_template)
+
+    # Если выбран один из стандартных шаблонов, сразу отправляем сообщение
+    if selected_template in ['template_1', 'template_2', 'template_3']:
+        # Получаем текст для рассылки в зависимости от выбранного шаблона
+        template_text = get_template_text(selected_template)
+        # Добавляем префикс "Сообщение от администратора"
+        template_text = "Сообщение от администратора:\n\n" + template_text
+
+        # Отправляем сообщение всем активным пользователям
+        await send_newsletter_to_users(template_text, session, callback_query.message, state)
+
+    else:
+        # Если выбран свой шаблон, запрашиваем ввод текста
+        await callback_query.message.answer("Введите сообщение, которое будет отправлено всем пользователям:")
+        # Переводим в состояние ожидания ввода текста
+        await state.set_state(AdminState.waiting_for_message_all)
+# Функция для получения текста шаблона
+def get_template_text(selected_template):
+    if selected_template == 'template_1':
+        return "В настоящий момент сервер временно недоступен, так как ведутся технические работы. Пожалуйста, ожидайте. Мы сообщим, когда доступность будет восстановлена."
+    elif selected_template == 'template_2':
+        return "На сервере проводятся обновления. Это может повлиять на работу системы. Мы работаем над тем, чтобы все было готово в кратчайшие сроки."
+    elif selected_template == 'template_3':
+        return "Мы рады сообщить, что сервер снова работает в обычном режиме. Все системы восстановлены, и теперь доступность сервиса полностью восстановлена.\n\nСпасибо за терпение!"
+    return ""
+# Функция для отправки рассылки
+async def send_newsletter_to_users(template_text, session, message, state):
+    # Получаем список активных пользователей
+    active_users = await get_active(session)
+
+    if not active_users:
+        await message.answer("Нет активных пользователей для рассылки.")
+        await state.clear()
+        return
+
+    # Отправляем сообщение всем активным пользователям
+    for user in active_users:
+        try:
+            await bot.send_message(chat_id=user.user_id, text=template_text)
+        except Exception as e:
+            print(f"Ошибка при отправке сообщения пользователю {user.user_id}: {e}")
+
+    # Подтверждение рассылки
+    await message.answer(f"Рассылка успешно отправлена всем {len(active_users)} активным пользователям!")
+
+    # Сбрасываем состояние
+    await state.clear()
+# Обработчик для собственного шаблона
+@admin_router.message(AdminState.waiting_for_message_all)
+async def handle_custom_newsletter_message(message: types.Message, state: FSMContext, session: AsyncSession):
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        selected_template = data.get("selected_template")
+
+        # Сообщение от администратора
+        admin_message_prefix = "Сообщение от администратора:\n\n"
+
+        # Если выбран собственный шаблон, используем текст, который ввёл администратор
+        if selected_template == 'custom_template':
+            template_text = admin_message_prefix + message.text
+        else:
+            # В случае, если был выбран один из стандартных шаблонов
+            template_text = admin_message_prefix + get_template_text(selected_template)
+
+        # Отправляем сообщение всем активным пользователям
+        await send_newsletter_to_users(template_text, session, message, state)
+
+    except Exception as e:
+        await message.answer(f"Произошла ошибка при отправке рассылки: {e}")
+
 """Поддержка"""
 @admin_router.message(or_f(Command("support"), (F.text.casefold() == "support")))
-async def black_list(message: types.Message):
+async def support_list(message: types.Message):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
         'Список проблем': 'support_list_',
         'Завершённые': 'true_list_',
