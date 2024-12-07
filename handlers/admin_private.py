@@ -3,9 +3,12 @@ from aiogram import Router, types, F
 from aiogram.filters import Command, or_f, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from sqlalchemy import select
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot_instance import bot
+from database.models import User
 from database.orm_support import get_all_users_with_tickets, get_all_users_with_tickets_false, \
     get_all_users_with_tickets_true
 from handlers.admin_operations import AdminStates, process_remove_admin_id
@@ -19,9 +22,11 @@ from database.orm_query_trial_product import get_trial_products, add_trial_produ
     count_trial_products
 from database.orm_query_trial_users import count_trial_users
 from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users, \
-    orm_get_users, show_all_users, get_active
+    orm_get_users
 from filters.chat_types import ChatTypeFilter, IsAdmin
 from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
+from handlers.user_private_operations import show_all_users, send_config_and_qr_button, get_active, \
+    delete_user_by_id_from_pivpn, toggle_pivpn_user
 from handlers.user_private_support import resolve_ticket, send_answer_to_client
 from kbds.inline import get_inlineMix_btns, get_callback_btns
 from kbds.reply import get_keyboard
@@ -52,6 +57,66 @@ class AdminState(StatesGroup):
     waiting_for_message = State()
     waiting_for_message_all = State()
 
+# Отмена действий
+@admin_router.message(StateFilter("*"), or_f(Command("отмена"), F.text.casefold() == "отмена"))
+async def cancel_handler(message: types.Message, state: FSMContext):
+    if await state.get_state():
+        await state.clear()  # Очистка состояния
+        await message.answer("Действия отменены", reply_markup=ADMIN_KB)
+    else:
+        await message.answer("Нет активных действий для отмены.", reply_markup=ADMIN_KB)
+
+@admin_router.callback_query(F.data == 'cancel_handler_')
+async def cancel_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    # Отменяем процесс
+    await callback_query.message.answer("Операция отменена.", reply_markup=ADMIN_KB)
+    await state.clear()
+
+
+# Активация/Деактивация
+@admin_router.callback_query(F.data.startswith("activate_user_"))
+async def activate_user(callback_query: types.CallbackQuery, session: AsyncSession):
+    user_id = int(callback_query.data.split("_")[2])
+
+    async with session.begin():
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.status = True
+            session.add(user)
+            await session.commit()
+
+            # Активация в PiVPN
+            if await toggle_pivpn_user(user_id, "on"):
+                await callback_query.message.answer(f"Пользователь {user.username} был активирован в системе и в PiVPN.")
+            else:
+                await callback_query.message.answer(f"Пользователь {user.username} был активирован в системе, но не удалось изменить статус в PiVPN.")
+        else:
+            await callback_query.message.answer(f"Пользователь с ID {user_id} не найден.")
+
+
+@admin_router.callback_query(F.data.startswith("deactivate_user_"))
+async def deactivate_user(callback_query: types.CallbackQuery, session: AsyncSession):
+    user_id = int(callback_query.data.split("_")[2])
+
+    async with session.begin():
+        result = await session.execute(select(User).where(User.user_id == user_id))
+        user = result.scalar_one_or_none()
+
+        if user:
+            user.status = False
+            session.add(user)
+            await session.commit()
+
+            # Деактивация в PiVPN
+            if await toggle_pivpn_user(user_id, "off"):
+                await callback_query.message.answer(f"Пользователь {user.username} был деактивирован в системе и в PiVPN.")
+            else:
+                await callback_query.message.answer(f"Пользователь {user.username} был деактивирован в системе, но не удалось изменить статус в PiVPN.")
+        else:
+            await callback_query.message.answer(f"Пользователь с ID {user_id} не найден.")
+
 
 @admin_router.message(or_f(Command("users"), (F.text == "👤 Пользователи")))
 async def users_list(message: types.Message):
@@ -60,10 +125,60 @@ async def users_list(message: types.Message):
         'Рассылка': 'newsletter_',
 
     }))
+# Удаление пользователя
+@admin_router.callback_query(F.data.startswith("delete_user_"))
+async def confirm_delete_user(callback_query: types.CallbackQuery):
+    user_id = callback_query.data.split("_")[-1]
+
+    # Запрашиваем подтверждение удаления
+    await callback_query.message.answer(
+        f"Вы уверены, что хотите удалить пользователя с ID {user_id}?",
+        reply_markup=get_inlineMix_btns(btns={
+            "Да, удалить": f"confirm_delete_user_{user_id}",
+            "Отмена": "cancel_handler_",
+        })
+    )
+
+@admin_router.callback_query(F.data.startswith("confirm_delete_user_"))
+async def delete_user(callback_query: types.CallbackQuery, session: AsyncSession):
+    user_id = int(callback_query.data.split("_")[-1])
+
+    try:
+        # Сначала удаляем пользователя из PiVPN
+        pivpn_deleted = await delete_user_by_id_from_pivpn(user_id)
+
+        if not pivpn_deleted:
+            await callback_query.message.answer(f"Не удалось удалить пользователя с ID {user_id} из PiVPN.")
+            return
+
+        async with session.begin():
+            # Удаление пользователя из базы данных
+            result = await session.execute(select(User).where(User.user_id == user_id))
+            user = result.scalar_one_or_none()
+
+            if user:
+                await session.delete(user)
+                await session.commit()
+                await callback_query.message.answer(f"Пользователь с ID {user_id} успешно удален из базы данных.")
+            else:
+                await callback_query.message.answer(f"Пользователь с ID {user_id} не найден.")
+
+    except Exception as e:
+        await callback_query.message.answer(f"Произошла ошибка при удалении пользователя. Ошибка: {e}")
+
 # Показать всех клиентов
 @admin_router.callback_query(F.data == 'users_list_')
 async def handle_show_users(callback_query: types.CallbackQuery, session: AsyncSession):
     await show_all_users(callback_query, session)
+# Обработка нажатия на кнопку "Просмотр Конфиг"
+@admin_router.callback_query(F.data.startswith("view_config_"))
+async def handle_view_config(callback_query: types.CallbackQuery, state: FSMContext):
+    # Извлекаем user_id из callback_data
+    user_id = callback_query.data.split("_")[-1]
+
+    # Вызов функции для отправки конфигов и QR-кода
+    await send_config_and_qr_button(callback_query.message, int(user_id))
+
 # Кнопка Управление клиентами
 @admin_router.callback_query(F.data.startswith('write_user_'))
 async def handle_write_user(callback_query: types.CallbackQuery, state: FSMContext):
@@ -77,7 +192,9 @@ async def handle_write_user(callback_query: types.CallbackQuery, state: FSMConte
         # Запрашиваем ввод сообщения
         await callback_query.message.answer(
             f"Введите сообщение для пользователя с ID {user_id}:"
-        )
+        ,reply_markup=get_inlineMix_btns(btns={
+                'Отмена': 'cancel_handler_'
+            }))
 
         # Переход в состояние ожидания сообщения
         await state.set_state(AdminState.waiting_for_message)
@@ -86,7 +203,7 @@ async def handle_write_user(callback_query: types.CallbackQuery, state: FSMConte
         await callback_query.message.answer(f"Произошла ошибка: {e}")
 # Кнопка Управление клиентами
 @admin_router.message(AdminState.waiting_for_message)
-async def handle_admin_message(message: types.Message,state: FSMContext):
+async def handle_admin_message(message: types.Message, state: FSMContext):
     try:
         # Получаем сохраненные данные (ID целевого пользователя)
         data = await state.get_data()
@@ -96,20 +213,65 @@ async def handle_admin_message(message: types.Message,state: FSMContext):
             await message.answer("Ошибка: пользователь не выбран.")
             return
 
-        # Отправка сообщения целевому пользователю
-        await bot.send_message(
-            chat_id=target_user_id,
-            text=f"<b>Сообщение от администратора:</b>\n{message.text}",parse_mode='HTML'
-        )
+        # Сохраняем сообщение в состоянии
+        await state.update_data(admin_message=message)
 
-        # Подтверждение отправки сообщения
-        await message.answer("Сообщение успешно отправлено!")
+        # Спрашиваем подтверждение у администратора
+        await message.answer(
+            f"<b>Вы уверены, что хотите отправить это сообщение?</b>\n\n"
+            f"<b>Сообщение:</b>\n{message.text if message.text else '[не текстовое сообщение]'}",
+            parse_mode='HTML',
+            reply_markup=get_inlineMix_btns(btns={
+                'Подтвердить отправку': 'confirm_send',
+                'Отмена': 'cancel_handler_'
+            })
+        )
+    except Exception as e:
+        await message.answer(f"Произошла ошибка: {e}")
+
+@admin_router.callback_query(F.data == 'confirm_send')
+async def confirm_send(callback_query: types.CallbackQuery, state: FSMContext):
+    try:
+        # Получаем данные из состояния
+        data = await state.get_data()
+        target_user_id = data.get("target_user_id")
+        admin_message = data.get("admin_message")
+
+        if not target_user_id or not admin_message:
+            await callback_query.message.answer("Ошибка: данные для отправки отсутствуют.")
+            await state.clear()
+            return
+
+        # Отправляем сообщение в зависимости от его типа
+        if admin_message.document:
+            await bot.send_document(
+                chat_id=target_user_id,
+                document=admin_message.document.file_id,
+                caption="Конфиг от администратора"
+            )
+        elif admin_message.photo:
+            await bot.send_photo(
+                chat_id=target_user_id,
+                photo=admin_message.photo[-1].file_id,
+                caption="Изображение от администратора"
+            )
+        elif admin_message.text:
+            await bot.send_message(
+                chat_id=target_user_id,
+                text=f"<b>Сообщение от администратора:</b>\n{admin_message.text}",
+                parse_mode='HTML'
+            )
+        else:
+            await callback_query.message.answer("Тип сообщения не поддерживается.")
+
+        # Подтверждаем успешную отправку
+        await callback_query.message.answer("Сообщение успешно отправлено!")
 
         # Сбрасываем состояние
         await state.clear()
 
     except Exception as e:
-        await message.answer(f"Произошла ошибка при отправке сообщения: {e}")
+        await callback_query.message.answer(f"Произошла ошибка при отправке сообщения: {e}")
 
 @admin_router.callback_query(F.data == 'newsletter_')
 async def handle_newsletter(callback_query: types.CallbackQuery):
@@ -123,35 +285,76 @@ async def handle_newsletter(callback_query: types.CallbackQuery):
     await callback_query.message.answer('Выберите шаблон для рассылки:', reply_markup=template_buttons)
 # Обработчик для выбора шаблона
 @admin_router.callback_query(F.data.in_(['template_1', 'template_2', 'template_3', 'custom_template']))
+@admin_router.callback_query(F.data.in_(['template_1', 'template_2', 'template_3', 'custom_template']))
 async def handle_template_selection(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
-    # Сохраняем выбранный шаблон в состоянии
     selected_template = callback_query.data
     await state.update_data(selected_template=selected_template)
 
-    # Если выбран один из стандартных шаблонов, сразу отправляем сообщение
     if selected_template in ['template_1', 'template_2', 'template_3']:
-        # Получаем текст для рассылки в зависимости от выбранного шаблона
+        # Получаем текст шаблона
         template_text = get_template_text(selected_template)
-        # Добавляем префикс "Сообщение от администратора"
-        template_text = "Сообщение от администратора:\n\n" + template_text
+        # Добавляем префикс "Сообщение от Администратора"
+        full_text = f"Сообщение от Администратора:\n\n{template_text}"
+        await state.update_data(message_text=full_text)
 
-        # Отправляем сообщение всем активным пользователям
-        await send_newsletter_to_users(template_text, session, callback_query.message, state)
+        # Отправляем сообщение для подтверждения
+        await callback_query.message.answer(
+            f"Вы выбрали следующий текст для рассылки:\n\n{full_text}\n\nПодтвердите отправку.",
+            reply_markup=get_inlineMix_btns(btns={
+                'Подтвердить': 'confirm_message_all',
+                'Отмена': 'cancel_handler_'
+            })
+        )
 
     else:
-        # Если выбран свой шаблон, запрашиваем ввод текста
-        await callback_query.message.answer("Введите сообщение, которое будет отправлено всем пользователям:")
-        # Переводим в состояние ожидания ввода текста
+        # Запрашиваем текст для custom_template
+        await callback_query.message.answer(
+            "Введите сообщение, которое будет отправлено всем пользователям:",
+            reply_markup=get_inlineMix_btns(btns={'Отмена': 'cancel_handler_'})
+        )
         await state.set_state(AdminState.waiting_for_message_all)
+
+
+@admin_router.message(AdminState.waiting_for_message_all)
+async def handle_custom_template_message(message: types.Message, state: FSMContext):
+    # Сохраняем введенный текст
+    custom_text = message.text
+    full_text = f"Сообщение от Администратора:\n\n{custom_text}"
+    await state.update_data(message_text=full_text)
+
+    # Запрашиваем подтверждение отправки
+    await message.answer(
+        f"Вы ввели следующий текст для рассылки:\n\n{full_text}\n\nПодтвердите отправку.",
+        reply_markup=get_inlineMix_btns(btns={
+            'Подтвердить': 'confirm_message_all',
+            'Отмена': 'cancel_handler_'
+        })
+    )
+
+
+@admin_router.callback_query(F.data == 'confirm_message_all')
+async def confirm_and_send_newsletter(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    # Получаем текст сообщения из состояния
+    data = await state.get_data()
+    template_text = data.get('message_text')
+
+    if not template_text:
+        await callback_query.message.answer("Ошибка: текст для рассылки не найден.")
+        await state.clear()
+        return
+
+    # Отправка сообщения всем активным пользователям
+    await send_newsletter_to_users(template_text, session, callback_query.message, state)
+
+
 # Функция для получения текста шаблона
 def get_template_text(selected_template):
-    if selected_template == 'template_1':
-        return "В настоящий момент сервер временно недоступен, так как ведутся технические работы. Пожалуйста, ожидайте. Мы сообщим, когда доступность будет восстановлена."
-    elif selected_template == 'template_2':
-        return "На сервере проводятся обновления. Это может повлиять на работу системы. Мы работаем над тем, чтобы все было готово в кратчайшие сроки."
-    elif selected_template == 'template_3':
-        return "Мы рады сообщить, что сервер снова работает в обычном режиме. Все системы восстановлены, и теперь доступность сервиса полностью восстановлена.\n\nСпасибо за терпение!"
-    return ""
+    templates = {
+        'template_1': "В настоящий момент сервер временно недоступен, так как ведутся технические работы. Пожалуйста, ожидайте. Мы сообщим, когда доступность будет восстановлена.",
+        'template_2': "На сервере проводятся обновления. Это может повлиять на работу системы. Мы работаем над тем, чтобы все было готово в кратчайшие сроки.",
+        'template_3': "Мы рады сообщить, что сервер снова работает в обычном режиме. Все системы восстановлены, и теперь доступность сервиса полностью восстановлена.\n\nСпасибо за терпение!"
+    }
+    return templates.get(selected_template, "")
 # Функция для отправки рассылки
 async def send_newsletter_to_users(template_text, session, message, state):
     # Получаем список активных пользователей
@@ -174,29 +377,6 @@ async def send_newsletter_to_users(template_text, session, message, state):
 
     # Сбрасываем состояние
     await state.clear()
-# Обработчик для собственного шаблона
-@admin_router.message(AdminState.waiting_for_message_all)
-async def handle_custom_newsletter_message(message: types.Message, state: FSMContext, session: AsyncSession):
-    try:
-        # Получаем данные из состояния
-        data = await state.get_data()
-        selected_template = data.get("selected_template")
-
-        # Сообщение от администратора
-        admin_message_prefix = "Сообщение от администратора:\n\n"
-
-        # Если выбран собственный шаблон, используем текст, который ввёл администратор
-        if selected_template == 'custom_template':
-            template_text = admin_message_prefix + message.text
-        else:
-            # В случае, если был выбран один из стандартных шаблонов
-            template_text = admin_message_prefix + get_template_text(selected_template)
-
-        # Отправляем сообщение всем активным пользователям
-        await send_newsletter_to_users(template_text, session, message, state)
-
-    except Exception as e:
-        await message.answer(f"Произошла ошибка при отправке рассылки: {e}")
 
 """Поддержка"""
 @admin_router.message(or_f(Command("support"), (F.text.casefold() == "support")))

@@ -24,17 +24,6 @@ async def resolve_ticket(session: AsyncSession, user_id: int, issue_description:
     else:
         return False
 
-# Функция для обновления задачи
-# async def resolve_ticket(session: AsyncSession, user_id: int):
-#     # Обновляем тикет, устанавливаем статус как решенный
-#     query = (
-#         update(SupportTicket)
-#         .where(SupportTicket.user_id == user_id)
-#         .values(is_resolved=True)
-#     )
-#     await session.execute(query)
-#     await session.commit()
-
 # Функция для отправки сообщения клиенту
 async def send_answer_to_client(ticket_id: int, user_id: int, admin_message: str, issue_description: str):
     """Отправка сообщения клиенту."""

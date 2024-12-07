@@ -17,10 +17,10 @@ from database.models import User, SupportTicket
 from database.orm_query import orm_get_products
 from database.orm_query_trial_product import get_trial_products
 from database.orm_query_trial_users import get_trial_subscription_info
-from database.orm_query_users import get_subscription_info, send_config_and_qr_button
 # Фильтры и кнопки
 from filters.chat_types import ChatTypeFilter
 from handlers.admin_operations import ADMIN_LIST
+from handlers.user_private_operations import get_subscription_info, send_config_and_qr_button
 from kbds.inline import get_inlineMix_btns
 from kbds.reply import get_keyboard
 # Обработчики
@@ -319,14 +319,14 @@ async def send_qr(callback: types.CallbackQuery):
 
 
 # Обработка всех файлов кроме текста
-@user_private_router.message(~F.text)
-async def allow_text_only(message: types.Message):
-    try:
-        await message.delete()  # Удаляем сообщение пользователя
-        await message.answer("Можно отправлять только текстовые сообщения!")  # Отправляем уведомление
-    except TelegramNotFound:
-        # Если сообщение уже удалено
-        pass
-    except TelegramAPIError as e:
-        # Обработка других ошибок Telegram API
-        print(f"Ошибка при удалении сообщения: {e}")
+# @user_private_router.message(~F.text)
+# async def allow_text_only(message: types.Message):
+#     try:
+#         await message.delete()  # Удаляем сообщение пользователя
+#         await message.answer("Можно отправлять только текстовые сообщения!")  # Отправляем уведомление
+#     except TelegramNotFound:
+#         # Если сообщение уже удалено
+#         pass
+#     except TelegramAPIError as e:
+#         # Обработка других ошибок Telegram API
+#         print(f"Ошибка при удалении сообщения: {e}")
