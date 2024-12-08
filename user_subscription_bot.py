@@ -1,9 +1,12 @@
 import asyncio
 from datetime import datetime
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot_instance import bot
 from database import orm_query_users,orm_query_trial_product
+from database.models import BlacklistUser
 
 
 # Проверка окончания подписки клиентов и отключения их!
@@ -131,3 +134,66 @@ async def check_subscriptions_trial(session: AsyncSession):
 
         # Ожидание перед следующей проверкой
         await asyncio.sleep(3600)  # Проверяем подписки каждый час
+
+
+async def check_blacklisted_users(session: AsyncSession):
+    while True:
+        print("Запуск проверки пользователей в черном списке...")
+        try:
+            # Получаем всех пользователей
+            users = await orm_query_users.orm_get_users(session)
+
+            if not users:
+                print("Пользователей не найдено. Повторяем проверку через 12 часов...")
+                await asyncio.sleep(43200)
+                continue
+
+            for user in users:
+                blacklisted_user = await session.execute(
+                    select(BlacklistUser).filter(BlacklistUser.user_id == user.user_id)
+                )
+                blacklisted_user = blacklisted_user.scalar()
+
+                if blacklisted_user:
+                    await bot.send_message(user.user_id, "Ваш аккаунт заблокирован. Свяжитесь с поддержкой.")
+                    username = f"user_{user.user_id}"
+
+                    try:
+                        # Удаление из PiVPN
+                        process = await asyncio.create_subprocess_exec(
+                            "sudo", "-S", "/usr/local/bin/pivpn", "-r", "-n", username, "-y",
+                            stdin=asyncio.subprocess.PIPE,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        stdout, stderr = await process.communicate(input=b'\n')
+
+                        if process.returncode == 0:
+                            print(f"Пользователь {user.username} с ID {user.user_id} удален из PiVPN.\n"
+                                  f"Вывод: {stdout.decode()}")
+                        else:
+                            print(f"Ошибка удаления пользователя {username} из PiVPN: {stderr.decode()}")
+
+                    except asyncio.TimeoutError:
+                        print(f"Удаление пользователя {username} из PiVPN превысило время ожидания.")
+                    except Exception as e:
+                        print(f"Ошибка при удалении пользователя {username} из PiVPN: {e}")
+
+                    try:
+                        # Удаление из базы данных
+                        await session.delete(user)
+                        print(f"Пользователь {user.username} с ID {user.user_id} удален из базы данных.")
+                    except Exception as e:
+                        print(f"Ошибка при удалении пользователя {user.username} из базы данных: {e}")
+
+            await session.commit()
+            print("Проверка пользователей в черном списке завершена.")
+        except Exception as e:
+            print(f"Ошибка при проверке пользователей в черном списке: {e}")
+            await session.rollback()
+        finally:
+            if session:
+                await session.close()
+
+        # Ожидание перед следующей проверкой
+        await asyncio.sleep(3600)

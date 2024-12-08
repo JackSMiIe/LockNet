@@ -7,9 +7,7 @@ from middlewares.db import DataBaseSession
 from database.engine import create_db, drop_db, session_maker
 from handlers.user_private import user_private_router
 from handlers.admin_private import admin_router
-from user_subscription_bot import check_subscriptions
-
-
+from user_subscription_bot import check_subscriptions, check_blacklisted_users, check_subscriptions_trial
 
 #ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query']
 
@@ -28,6 +26,8 @@ async def on_startup(bot):  # dp передается автоматически
         await drop_db()
     await create_db()
     asyncio.create_task(check_subscriptions(session_maker())) # ятут
+    asyncio.create_task(check_blacklisted_users(session_maker()))
+    asyncio.create_task(check_subscriptions_trial(session_maker()))
 
 async def on_shutdown(bot):
     print('Bot ERROR')

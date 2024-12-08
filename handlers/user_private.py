@@ -1,5 +1,6 @@
 # Внешние библиотеки
 from aiogram import  Router, F
+from aiogram.exceptions import TelegramNotFound, TelegramAPIError
 from aiogram.filters import CommandStart, Command, or_f, StateFilter
 from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.formatting import as_marked_section, Bold
@@ -7,6 +8,7 @@ from dotenv import load_dotenv, find_dotenv
 # Модели и ORM запросы
 from database.models import User, SupportTicket
 from database.orm_query import orm_get_products
+from database.orm_query_blacklist import is_blacklisted
 from database.orm_query_trial_product import get_trial_products
 from database.orm_query_trial_users import get_trial_subscription_info
 # Фильтры
@@ -54,10 +56,15 @@ load_dotenv(find_dotenv())
 user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
 
-
 # Команда старт
 @user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message,state: FSMContext):
+async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSession):
+    # Проверяем, находится ли пользователь в черном списке
+    if await is_blacklisted(session, message.from_user.id):
+        await message.answer("Вы находитесь в черном списке. Доступ к боту ограничен.")
+        return  # Прерываем обработку, если пользователь в черном списке
+
+    # Если пользователь не в черном списке, продолжаем выполнение
     await state.clear()
     bot_info = await bot.get_me()
     await message.answer(
@@ -66,7 +73,8 @@ async def start_cmd(message: types.Message,state: FSMContext):
         f"Просто наслаждайтесь безопасным интернет-серфингом, а мы позаботимся о вашей конфиденциальности и скорости соединения. 🔐⚡\n\n"
         f"Если вам нужно больше информации или помощь — всегда рады помочь! 😊\n\n"
         f"Выберите действие 👇",
-        parse_mode='HTML',reply_markup=get_keyboard(
+        parse_mode='HTML',
+        reply_markup=get_keyboard(
             "💼 Тарифы",
             "🎁 Пробный период",
             "👤 Личный кабинет",
@@ -212,15 +220,40 @@ async def handle_describe_problem(callback: types.CallbackQuery, state: FSMConte
     await callback.message.answer("Опишите вашу проблему. Мы постараемся помочь.")
     await state.set_state(SupportStates.waiting_for_support_message)
 
+
 @user_private_router.message(StateFilter(SupportStates.waiting_for_support_message))
-async def handle_support_message(message: types.Message, state: FSMContext, session: AsyncSession):
-    """Сохраняет описание проблемы и уведомляет администратора."""
+async def handle_support_message(message: types.Message, state: FSMContext):
+    """Сохраняет описание проблемы и уведомляет администратора после подтверждения."""
     user_id = message.from_user.id
     username = message.from_user.username
     issue_description = message.text
 
+    # Предлагаем пользователю подтвердить или отменить
+    await message.answer(
+        "Вы хотите отправить следующее описание проблемы?\n\n"
+        f"<b>{issue_description}</b>\n\n"
+        "Выберите действие:",
+        parse_mode='HTML',
+        reply_markup=get_inlineMix_btns(btns={
+            "✅ Отправить": "confirm_issue",
+            "❌ Отменить": "cancel_issue",
+        })
+    )
+
+    # Сохраняем описание проблемы в контексте состояния
+    await state.update_data(issue_description=issue_description)
+
+
+@user_private_router.callback_query(F.data == "confirm_issue")
+async def confirm_issue(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Подтверждает отправку проблемы и уведомляет администратора."""
+    user_data = await state.get_data()
+    issue_description = user_data.get("issue_description")
+    user_id = callback.from_user.id
+    username = callback.from_user.username
+
     try:
-        # Создаем обращение
+        # Создаем тикет
         ticket = SupportTicket(
             user_id=user_id,
             username=username,
@@ -230,26 +263,57 @@ async def handle_support_message(message: types.Message, state: FSMContext, sess
         await session.commit()
 
         # Уведомляем пользователя
-        await message.answer(f"Ваш запрос принят! Номер обращения: {ticket.id}. Мы скоро свяжемся с вами.")
+        await callback.message.answer(
+            f"Ваш запрос принят! Номер обращения: <b>{ticket.id}</b>. Мы скоро свяжемся с вами.",
+            parse_mode='HTML'
+        )
 
         # Уведомляем администратора
         for admin_id in ADMIN_LIST:
             await bot.send_message(
                 admin_id,
-                f"Новое обращение #{ticket.id} от @{username} (ID: {user_id}):\n\n{issue_description}",
+                f"🔔 Новое обращение #{ticket.id} от @{username} (ID: {user_id}):\n\n{issue_description}\n\n"
+                f"Для обработки обращения перейдите на страницу с тикетами.",
             )
 
         # Очищаем состояние
         await state.clear()
     except Exception as e:
-        await message.answer("Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.")
+        await callback.message.answer("Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.")
         # Логирование ошибки
         print(f"Ошибка при обработке запроса: {e}")
+
+
+@user_private_router.callback_query(F.data == "cancel_issue")
+async def cancel_issue(callback: types.CallbackQuery, state: FSMContext):
+    """Отменяет отправку проблемы и возвращает пользователя в начальное состояние."""
+    await callback.message.answer("Ваш запрос был отменен. Напишите снова, если возникнут другие вопросы.")
+    await state.clear()
+
+
 @user_private_router.callback_query(F.data.startswith("frequent_questions"))
 async def handle_faq(callback: types.CallbackQuery):
     """Отправляет пользователю список часто задаваемых вопросов."""
-    faq_text = "Вот некоторые часто задаваемые вопросы:\n\n"
-    faq_text += "1. Как оформить заявку?\n2. Что делать, если я забыл пароль?\n3. Как поменять тариф?"
+    faq_text = (
+        "Вот некоторые часто задаваемые вопросы:\n\n"
+        "1. Как подключиться к VPN?\n"
+        "   - Для подключения используйте инструкцию в разделе 'Инструкции'. Мы предоставим файл конфигурации для вашего устройства.\n\n"
+        "2. Какие тарифы доступны?\n"
+        "   - У нас есть тарифы на 1 месяц, 3 месяца. Выберите нужный тариф в разделе 'Тарифы'.\n\n"
+        "3. Где находятся серверы?\n"
+        "   - Наши серверы находятся в Нидерландах 🇳🇱, что гарантирует стабильную работу и конфиденциальность.\n\n"
+        "4. Как начать пробный период?\n"
+        "   - Для активации пробного периода выберите раздел 'Пробный период'.\n\n"
+        "5. Как получить помощь по настройке?\n"
+        "   - Обратитесь в раздел 'Поддержка', и наши специалисты помогут вам с настройкой.\n\n"
+        "6. Что делать, если у меня возникла проблема с подключением?\n"
+        "   - Описание проблемы можно отправить в раздел 'Описать проблему'. Мы оперативно решим вашу задачу.\n\n"
+        "7. Как узнать срок действия моей подписки?\n"
+        "   - Просмотрите раздел 'Личный кабинет', чтобы получить информацию о статусе вашей подписки.\n\n"
+        "8. Какие способы оплаты доступны?\n"
+        "   - Мы поддерживаем несколько способов оплаты, доступных в разделе 'Тарифы'."
+    )
+
     await callback.message.answer(faq_text)
 
 # Способы оплаты
@@ -300,14 +364,17 @@ async def send_qr(callback: types.CallbackQuery):
 
 
 # Обработка всех файлов кроме текста
-# @user_private_router.message(~F.text)
-# async def allow_text_only(message: types.Message):
-#     try:
-#         await message.delete()  # Удаляем сообщение пользователя
-#         await message.answer("Можно отправлять только текстовые сообщения!")  # Отправляем уведомление
-#     except TelegramNotFound:
-#         # Если сообщение уже удалено
-#         pass
-#     except TelegramAPIError as e:
-#         # Обработка других ошибок Telegram API
-#         print(f"Ошибка при удалении сообщения: {e}")
+@user_private_router.message(~F.text)
+async def allow_text_only(message: types.Message):
+    try:
+        await message.delete()  # Удаляем сообщение пользователя
+        await message.answer("Можно отправлять только текстовые сообщения!")  # Отправляем уведомление
+    except TelegramNotFound:
+        # Если сообщение уже удалено
+        pass
+    except TelegramAPIError as e:
+        # Обработка других ошибок Telegram API
+        print(f"Ошибка при удалении сообщения: {e}")
+
+
+

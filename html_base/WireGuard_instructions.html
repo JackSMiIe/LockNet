@@ -1,0 +1,77 @@
+
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инструкция по настройке WireGuard на Android</title>
+    <!-- Подключаем Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Настройка VPN через WireGuard на Android</h1>
+
+        <p class="lead">Следуйте шагам ниже, чтобы настроить VPN на вашем Android-устройстве.</p>
+
+        <div class="mb-4">
+            <h3>1. Установка приложения WireGuard</h3>
+            <ol>
+                <li>Откройте <strong>Google Play Store</strong> на вашем Android-устройстве.</li>
+                <li>Найдите приложение <strong>WireGuard</strong>.</li>
+                <li>Скачайте и установите приложение.</li>
+            </ol>
+        </div>
+
+        <div class="mb-4">
+            <h3>2. Получение конфигурации для подключения</h3>
+            <ol>
+                <li>Получите конфигурацию от администратора сервера или через ваш Telegram-бот, которая может быть в виде файла <code>.conf</code> или QR-кода.</li>
+                <li>Если у вас есть файл <code>.conf</code>, отправьте его на ваше Android-устройство.</li>
+                <li>Если у вас есть QR-код, сохраните его на устройстве.</li>
+            </ol>
+        </div>
+
+        <div class="mb-4">
+            <h3>3. Настройка WireGuard</h3>
+            <p><strong>Если у вас файл конфигурации (.conf):</strong></p>
+            <ol>
+                <li>Откройте приложение <strong>WireGuard</strong>.</li>
+                <li>Нажмите на значок <strong>+</strong> в правом нижнем углу экрана.</li>
+                <li>Выберите <strong>Импортировать из файла</strong>.</li>
+                <li>Выберите ваш файл <code>.conf</code>.</li>
+                <li>Настройки будут автоматически добавлены.</li>
+            </ol>
+            <p><strong>Если у вас QR-код:</strong></p>
+            <ol>
+                <li>Откройте приложение <strong>WireGuard</strong>.</li>
+                <li>Нажмите на значок <strong>+</strong> и выберите <strong>Сканировать QR-код</strong>.</li>
+                <li>Разрешите приложению доступ к камере и отсканируйте QR-код.</li>
+                <li>Приложение автоматически загрузит все необходимые настройки.</li>
+            </ol>
+        </div>
+
+        <div class="mb-4">
+            <h3>4. Подключение к VPN</h3>
+            <ol>
+                <li>Вернитесь в основное окно приложения WireGuard.</li>
+                <li>Найдите ваше подключение и включите его, переключив ползунок в положение <strong>Включено</strong>.</li>
+                <li>Приложение запросит разрешение на подключение — подтвердите его.</li>
+                <li>После успешного подключения вы сможете пользоваться интернетом через VPN.</li>
+            </ol>
+        </div>
+
+        <div class="mb-4">
+            <h3>5. Завершение работы</h3>
+            <ol>
+                <li>Когда вам больше не нужно подключение, вернитесь в приложение и выключите соединение, переключив ползунок в положение <strong>Выключено</strong>.</li>
+            </ol>
+        </div>
+
+        <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на Android!</p>
+    </div>
+
+    <!-- Подключаем Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

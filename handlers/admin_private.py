@@ -59,8 +59,8 @@ ADMIN_KB = get_keyboard(
     "👤 Пользователи",      # Кнопка для управления пользователями
     "📊 Статистика",        # Кнопка для просмотра статистики
     "🔑 Администраторы",
-    "Support",# Кнопка для управления ролями
-    placeholder="Выберите действие",
+    "🛠 Техподдержка",# Кнопка для управления ролями
+    placeholder="Выберите действие 👇",
     sizes=(3, 3),         # Размеры для упорядочивания кнопок
 )
 
@@ -139,7 +139,7 @@ async def deactivate_user(callback_query: types.CallbackQuery, session: AsyncSes
             await callback_query.message.answer(f"Пользователь с ID {user_id} не найден.")
 
 
-@admin_router.message(or_f(Command("users"), (F.text == "👤 Пользователи")))
+@admin_router.message((F.text == "👤 Пользователи"))
 async def users_list(message: types.Message):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
         'Управление клиентами': 'users_list_',
@@ -400,7 +400,7 @@ async def send_newsletter_to_users(template_text, session, message, state):
     await state.clear()
 
 """Поддержка"""
-@admin_router.message(or_f(Command("support"), (F.text.casefold() == "support")))
+@admin_router.message((F.text == "🛠 Техподдержка"))
 async def support_list(message: types.Message):
     await message.answer('Выберите действие: ', reply_markup=get_inlineMix_btns(btns={
         'Список проблем': 'support_list_',
