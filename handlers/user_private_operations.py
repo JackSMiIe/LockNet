@@ -130,12 +130,12 @@ async def get_subscription_info(user_id: int, session: AsyncSession) -> str:
         start = user.subscription_start.strftime("%d-%m-%Y") if user.subscription_start else "Не указано"
         end = user.subscription_end.strftime("%d-%m-%Y") if user.subscription_end else "Не указано"
 
-        return  (
-            f"Добро пожаловать, {username}!\n\n"
-            f"Ваш статус подписки: {subscription_status}\n"
-            f"Ваш продукт: {product_name}\n"
-            f"Подписка началась: {start}\n"
-            f"Подписка заканчивается: {end}\n"
+        return (
+            f"👋 Добро пожаловать, <b>{username}</b>!\n\n"
+            f"✅ <b>Статус подписки</b>: <b>{subscription_status}</b>\n"
+            f"💼 <b>Ваш продукт</b>: <b>{product_name}</b>\n"
+            f"📆 <b>Подписка началась</b>: <b>{start}</b>\n"
+            f"🗓️ <b>Подписка заканчивается</b>: <b>{end}</b>\n"
         )
 
 

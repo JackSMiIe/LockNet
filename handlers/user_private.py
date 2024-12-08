@@ -1,31 +1,53 @@
 # Внешние библиотеки
-from aiogram import types, Router, F
-from aiogram.exceptions import TelegramAPIError, TelegramNotFound
-from aiogram.fsm.context import FSMContext
+from aiogram import  Router, F
 from aiogram.filters import CommandStart, Command, or_f, StateFilter
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import ReplyKeyboardRemove, FSInputFile
+from aiogram.types import ReplyKeyboardRemove
 from aiogram.utils.formatting import as_marked_section, Bold
 from dotenv import load_dotenv, find_dotenv
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from bot_instance import bot
-from common.bot_cmds_list import private
 # Модели и ORM запросы
 from database.models import User, SupportTicket
 from database.orm_query import orm_get_products
 from database.orm_query_trial_product import get_trial_products
 from database.orm_query_trial_users import get_trial_subscription_info
-# Фильтры и кнопки
+# Фильтры
 from filters.chat_types import ChatTypeFilter
-from handlers.admin_operations import ADMIN_LIST
-from handlers.user_private_operations import get_subscription_info, send_config_and_qr_button
-from kbds.inline import get_inlineMix_btns
+# Кнопки
 from kbds.reply import get_keyboard
 # Обработчики
-from handlers.payment_handlers import pay, process_pre_checkout_query, process_successful_payment
+from handlers.admin_operations import ADMIN_LIST
+from handlers.user_private_operations import *
+from handlers.payment_handlers import *
 from handlers.trial_period import process_trial_subscription
+
+
+# # Внешние библиотеки
+# from aiogram import types, Router, F
+# from aiogram.exceptions import TelegramAPIError, TelegramNotFound
+# from aiogram.fsm.context import FSMContext
+# from aiogram.filters import CommandStart, Command, or_f, StateFilter
+# from aiogram.fsm.state import StatesGroup, State
+# from aiogram.types import ReplyKeyboardRemove, FSInputFile
+# from aiogram.utils.formatting import as_marked_section, Bold
+# from dotenv import load_dotenv, find_dotenv
+# from sqlalchemy import select
+# from sqlalchemy.ext.asyncio import AsyncSession
+#
+# from bot_instance import bot
+# from common.bot_cmds_list import private
+# # Модели и ORM запросы
+# from database.models import User, SupportTicket
+# from database.orm_query import orm_get_products
+# from database.orm_query_trial_product import get_trial_products
+# from database.orm_query_trial_users import get_trial_subscription_info
+# # Фильтры и кнопки
+# from filters.chat_types import ChatTypeFilter
+# from handlers.admin_operations import ADMIN_LIST
+# from handlers.user_private_operations import get_subscription_info, send_config_and_qr_button
+# from kbds.inline import get_inlineMix_btns
+# from kbds.reply import get_keyboard
+# # Обработчики
+# from handlers.payment_handlers import pay, process_pre_checkout_query, process_successful_payment
+# from handlers.trial_period import process_trial_subscription
 
 
 load_dotenv(find_dotenv())
@@ -35,25 +57,28 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 # Команда старт
 @user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message):
-    print(message.from_user.id)
+async def start_cmd(message: types.Message,state: FSMContext):
+    await state.clear()
+    bot_info = await bot.get_me()
     await message.answer(
-        f"<b>{message.from_user.first_name}</b>\nДобро пожаловать в наш VPN бот!\nВыберите действие:",
-        parse_mode='HTML',
-        reply_markup=get_keyboard(
-            "Варианты подписки",
-            "Способы оплаты",
-            "Пробный период",
-            "Личный кабинет",
-            "Инструкции",
-            "Поддержка",
+        f"Привет, <b>{message.from_user.first_name}</b>! 👋\n\n"
+        f"Вы находитесь в нашем {bot_info.username}. 🌐 Мы обеспечиваем стабильное и безопасное подключение через сервер, расположенный в Нидерландах 🇳🇱.\n\n"
+        f"Просто наслаждайтесь безопасным интернет-серфингом, а мы позаботимся о вашей конфиденциальности и скорости соединения. 🔐⚡\n\n"
+        f"Если вам нужно больше информации или помощь — всегда рады помочь! 😊\n\n"
+        f"Выберите действие 👇",
+        parse_mode='HTML',reply_markup=get_keyboard(
+            "💼 Тарифы",
+            "🎁 Пробный период",
+            "👤 Личный кабинет",
+            "📖 Инструкции",
+            "🛠 Поддержка",
             placeholder="Что вас интересует?",
-            sizes=(2, 2, 2)
+            sizes=(2, 2, 1),
         ),
     )
 
 
-@user_private_router.message(F.text.casefold() == "личный кабинет")
+@user_private_router.message(F.text == "👤 Личный кабинет")
 async def personal_cabinet(message: types.Message, session: AsyncSession):
     user_id = message.from_user.id
     try:
@@ -69,7 +94,7 @@ async def personal_cabinet(message: types.Message, session: AsyncSession):
             else:
                 # Проверяем, активна ли подписка
                 if "Активна" in dashboard:
-                    await message.answer(dashboard)
+                    await message.answer(dashboard,parse_mode='HTML')
                     # Если подписка активна, вызываем функцию для отправки конфиг-файла и кнопки
                     await send_config_and_qr_button(message, user_id)
                 else:
@@ -89,19 +114,17 @@ async def personal_cabinet(message: types.Message, session: AsyncSession):
 
 
 # Обработчик команды "Пробный период"
-@user_private_router.message(F.text.casefold() == "пробный период")
-async def trial_period_cmd(message: types.Message, session: AsyncSession, state: FSMContext):
+@user_private_router.message(F.text == "🎁 Пробный период")
+async def trial_period_cmd(message: types.Message, session: AsyncSession):
     # Убираем обычную клавиатуру
-    await message.answer("Открываю список пробных периодов...", reply_markup=ReplyKeyboardRemove())
+    await message.answer("Открываю список пробных периодов ⬇️")
 
     # Получаем список пробных продуктов
     trial_products = await get_trial_products(session)
 
     if not trial_products:
         # Если пробных продуктов нет
-        await message.answer("Товара нет.",reply_markup=get_inlineMix_btns(btns={
-            'Назад' : 'menu_'
-        }))
+        await message.answer("Товара нет ❌")
         return
 
     # Если продукты есть, отправляем их с inline-кнопками
@@ -133,19 +156,18 @@ async def back_callback(callback_query: types.CallbackQuery, state: FSMContext):
         '<b>Выберите действие:</b>',
         parse_mode='HTML',
         reply_markup=get_keyboard(
-            "Варианты подписки",
-            "Способы оплаты",
-            "Пробный период",
-            "Личный кабинет",
-            "Инструкции",
-            "Поддержка",
+            "💼 Тарифы",  # Информация о тарифах
+            "🎁 Пробный период",  # Предложение попробовать бесплатно
+            "👤 Личный кабинет",  # Данные пользователя
+            "📖 Инструкции",  # Как пользоваться
+            "🛠 Поддержка",  # Помощь и обратная связь
             placeholder="Что вас интересует?",
-            sizes=(2, 2, 2)
+            sizes=(2, 2, 1),  # Логически сгруппировано: 2 верхних, 2 нижних, 1 последняя
         ),
     )
 
 # Варианты подписки
-@user_private_router.message(or_f(Command("subscription_plans"), (F.text.lower() == "варианты подписки")))
+@user_private_router.message(F.text == "💼 Тарифы")
 async def menu_cmd(message: types.Message, session: AsyncSession):
     # Проверяем, зарегистрирован ли пользователь
     user_id = message.from_user.id
@@ -171,16 +193,18 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
 class SupportStates(StatesGroup):
     waiting_for_support_message = State()
 
-@user_private_router.message(F.text.casefold() == "поддержка")
+@user_private_router.message(F.text == "🛠 Поддержка")
 async def support_start(message: types.Message, state: FSMContext):
     """Запрашивает выбор действия у пользователя."""
     await message.answer(
-        "Выберите действие:",
-        reply_markup=get_inlineMix_btns(btns={
-            "Описать проблему": "describe_problem",
-            "Частые вопросы": "frequent_questions",
-            "Меню": "menu_"
-        })  # Клавиатура с кнопками
+        "Выберите действие ⬇️",
+        reply_markup=get_inlineMix_btns(
+            btns={
+                "🛠️ Описать проблему": "describe_problem",
+                "❓ Частые вопросы": "frequent_questions",
+            },
+            sizes=(1, 1)  # Кнопки по одной в каждом ряду
+        )
     )
 @user_private_router.callback_query(F.data.startswith("describe_problem"))
 async def handle_describe_problem(callback: types.CallbackQuery, state: FSMContext):
@@ -227,65 +251,22 @@ async def handle_faq(callback: types.CallbackQuery):
     faq_text = "Вот некоторые часто задаваемые вопросы:\n\n"
     faq_text += "1. Как оформить заявку?\n2. Что делать, если я забыл пароль?\n3. Как поменять тариф?"
     await callback.message.answer(faq_text)
-# @user_private_router.message(F.text.casefold() == "поддержка")
-# async def support_start(message: types.Message, state: FSMContext):
-#     """Запрашивает описание проблемы у пользователя."""
-#     await message.answer("Опишите вашу проблему. Мы постараемся помочь.")
-#     await state.set_state(SupportStates.waiting_for_support_message)
-#
-# @user_private_router.message(StateFilter(SupportStates.waiting_for_support_message))
-# async def handle_support_message(message: types.Message, state: FSMContext, session: AsyncSession):
-#     """Сохраняет описание проблемы и уведомляет администратора."""
-#     user_id = message.from_user.id
-#     username = message.from_user.username
-#     issue_description = message.text
-#
-#     try:
-#         # Создаем обращение
-#         ticket = SupportTicket(
-#             user_id=user_id,
-#             username=username,
-#             issue_description=issue_description
-#         )
-#         session.add(ticket)
-#         await session.commit()
-#
-#         # Уведомляем пользователя
-#         await message.answer(f"Ваш запрос принят! Номер обращения: {ticket.id}. Мы скоро свяжемся с вами.")
-#
-#         # Уведомляем администратора
-#         for admin_id in ADMIN_LIST:
-#             await bot.send_message(
-#                 admin_id,
-#                 f"Новое обращение #{ticket.id} от @{username} (ID: {user_id}):\n\n{issue_description}",
-#             )
-#
-#         # Очищаем состояние
-#         await state.clear()
-#     except Exception as e:
-#         await message.answer("Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.")
-#         # Логирование ошибки
-#         print(f"Ошибка при обработке запроса: {e}")
-
-
-
 
 # Способы оплаты
-@user_private_router.message(F.text.lower() == "способы оплаты")
-@user_private_router.message(Command("payment"))
-async def payment_cmd(message: types.Message):
-    text = as_marked_section(
-        Bold("Способы оплаты:"),
-        "Картой в боте",
-        "При получении карта/кеш",
-        "В заведении",
-        marker="✅ ",
-    )
-    await message.answer(text.as_html())
+# @user_private_router.message(F.text.lower() == "способы оплаты")
+# @user_private_router.message(Command("payment"))
+# async def payment_cmd(message: types.Message):
+#     text = as_marked_section(
+#         Bold("Способы оплаты:"),
+#         "Картой в боте",
+#         "При получении карта/кеш",
+#         "В заведении",
+#         marker="✅ ",
+#     )
+#     await message.answer(text.as_html())
 
 # Инструкции
-@user_private_router.message(F.text.lower() == "инструкции")
-@user_private_router.message(Command("inst"))
+@user_private_router.message(F.text == "📖 Инструкции")
 async def about_cmd(message: types.Message):
     await message.answer("<b>Здесь будет описание:</b>", parse_mode="HTML")
 

@@ -1,7 +1,8 @@
 import asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from bot_instance import bot
 from aiogram import Dispatcher, types
+
+from common.bot_cmds_list import private
 from middlewares.db import DataBaseSession
 from database.engine import create_db, drop_db, session_maker
 from handlers.user_private import user_private_router
@@ -43,8 +44,8 @@ async def main():
 
 
 
-    #await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())
-    #await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
+    await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())
+    await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 

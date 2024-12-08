@@ -1,35 +1,56 @@
-
-from aiogram import Router, types, F
+# Внешние библиотеки
+from aiogram import Router, F
 from aiogram.filters import Command, or_f, StateFilter
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from sqlalchemy import select
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from bot_instance import bot
-from database.models import User
-from database.orm_support import get_all_users_with_tickets, get_all_users_with_tickets_false, \
-    get_all_users_with_tickets_true
-from handlers.admin_operations import AdminStates, process_remove_admin_id
-
-from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
-    count_promotion_products
-from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users, \
-    add_user_to_blacklist, remove_user_from_blacklist
-from database.orm_query_free_user import count_free_users
-from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
-    count_trial_products
-from database.orm_query_trial_users import count_trial_users
-from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users, \
-    orm_get_users
+# ORM-запросы
+from database.orm_support import *
+from database.orm_query import *
+from database.orm_query_blacklist import *
+from database.orm_query_free_user import *
+from database.orm_query_trial_product import *
+from database.orm_query_trial_users import *
+from database.orm_query_users import *
+# Фильтры
 from filters.chat_types import ChatTypeFilter, IsAdmin
-from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
-from handlers.user_private_operations import show_all_users, send_config_and_qr_button, get_active, \
-    delete_user_by_id_from_pivpn, toggle_pivpn_user
-from handlers.user_private_support import resolve_ticket, send_answer_to_client
-from kbds.inline import get_inlineMix_btns, get_callback_btns
+# Обработчики администратора
+from handlers.admin_operations import *
+# Обработчики пользователей
+from handlers.user_private_operations import *
+from handlers.user_private_support import *
+# Кнопки
+from kbds.inline import get_inlineMix_btns
 from kbds.reply import get_keyboard
+
+# from aiogram import Router, types, F
+# from aiogram.filters import Command, or_f, StateFilter
+# from aiogram.fsm.context import FSMContext
+# from aiogram.fsm.state import StatesGroup, State
+# from sqlalchemy import select
+#
+# from sqlalchemy.ext.asyncio import AsyncSession
+#
+# from bot_instance import bot
+# from database.models import User
+# from database.orm_support import get_all_users_with_tickets, get_all_users_with_tickets_false, \
+#     get_all_users_with_tickets_true
+# from handlers.admin_operations import AdminStates, process_remove_admin_id
+#
+# from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
+#     count_promotion_products
+# from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users, \
+#     add_user_to_blacklist, remove_user_from_blacklist
+# from database.orm_query_free_user import count_free_users
+# from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
+#     count_trial_products
+# from database.orm_query_trial_users import count_trial_users
+# from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users, \
+#     orm_get_users
+# from filters.chat_types import ChatTypeFilter, IsAdmin
+# from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
+# from handlers.user_private_operations import show_all_users, send_config_and_qr_button, get_active, \
+#     delete_user_by_id_from_pivpn, toggle_pivpn_user
+# from handlers.user_private_support import resolve_ticket, send_answer_to_client
+# from kbds.inline import get_inlineMix_btns, get_callback_btns
+# from kbds.reply import get_keyboard
 
 
 ADMIN_KB = get_keyboard(

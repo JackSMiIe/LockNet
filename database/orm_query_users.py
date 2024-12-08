@@ -1,17 +1,7 @@
-import os
-
-from aiogram.types import FSInputFile
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-from aiogram import types
 
-from bot_instance import bot
 from database.models import User
-from kbds.inline import get_inlineMix_btns
-
-
-# Настройка логирования
 
 
 # Получить все записи БД

@@ -1,7 +1,6 @@
 from bot_instance import bot
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.sync import update
 
 from database.models import SupportTicket
 
