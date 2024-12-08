@@ -1,39 +1,62 @@
-
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Инструкция по настройке WireGuard на Android</title>
+    <title>Инструкция по настройке WireGuard</title>
     <!-- Подключаем Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">WireGuard VPN</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#android">Android</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#ios">iOS</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#windows">Windows</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#macos">macOS</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
     <div class="container mt-5">
-        <h1 class="text-center mb-4">Настройка VPN через WireGuard на Android</h1>
+        <h1 class="text-center mb-4">Настройка VPN через WireGuard</h1>
 
-        <p class="lead">Следуйте шагам ниже, чтобы настроить VPN на вашем Android-устройстве.</p>
+        <p class="lead">Следуйте шагам ниже, чтобы настроить VPN на вашем устройстве.</p>
 
-        <div class="mb-4">
-            <h3>1. Установка приложения WireGuard</h3>
+        <!-- Инструкция для Android -->
+        <div id="android" class="mb-4">
+            <h3>Настройка на Android</h3>
+            <h4>1. Установка приложения WireGuard</h4>
             <ol>
                 <li>Откройте <strong>Google Play Store</strong> на вашем Android-устройстве.</li>
                 <li>Найдите приложение <strong>WireGuard</strong>.</li>
                 <li>Скачайте и установите приложение.</li>
             </ol>
-        </div>
 
-        <div class="mb-4">
-            <h3>2. Получение конфигурации для подключения</h3>
+            <h4>2. Получение конфигурации для подключения</h4>
             <ol>
                 <li>Получите конфигурацию от администратора сервера или через ваш Telegram-бот, которая может быть в виде файла <code>.conf</code> или QR-кода.</li>
                 <li>Если у вас есть файл <code>.conf</code>, отправьте его на ваше Android-устройство.</li>
                 <li>Если у вас есть QR-код, сохраните его на устройстве.</li>
             </ol>
-        </div>
 
-        <div class="mb-4">
-            <h3>3. Настройка WireGuard</h3>
+            <h4>3. Настройка WireGuard</h4>
             <p><strong>Если у вас файл конфигурации (.conf):</strong></p>
             <ol>
                 <li>Откройте приложение <strong>WireGuard</strong>.</li>
@@ -49,29 +72,170 @@
                 <li>Разрешите приложению доступ к камере и отсканируйте QR-код.</li>
                 <li>Приложение автоматически загрузит все необходимые настройки.</li>
             </ol>
-        </div>
 
-        <div class="mb-4">
-            <h3>4. Подключение к VPN</h3>
+            <h4>4. Подключение к VPN</h4>
             <ol>
                 <li>Вернитесь в основное окно приложения WireGuard.</li>
                 <li>Найдите ваше подключение и включите его, переключив ползунок в положение <strong>Включено</strong>.</li>
                 <li>Приложение запросит разрешение на подключение — подтвердите его.</li>
                 <li>После успешного подключения вы сможете пользоваться интернетом через VPN.</li>
             </ol>
-        </div>
 
-        <div class="mb-4">
-            <h3>5. Завершение работы</h3>
+            <h4>5. Завершение работы</h4>
             <ol>
                 <li>Когда вам больше не нужно подключение, вернитесь в приложение и выключите соединение, переключив ползунок в положение <strong>Выключено</strong>.</li>
             </ol>
+
+            <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на Android!</p>
         </div>
 
-        <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на Android!</p>
-    </div>
+<!-- Инструкция для iOS -->
+<div id="ios" class="mb-4">
+    <h3>Настройка на iOS</h3>
+    <h4>1. Установка приложения WireGuard</h4>
+    <ol>
+        <li>Откройте <strong>App Store</strong> на вашем iOS-устройстве.</li>
+        <li>Найдите приложение <strong>WireGuard</strong>.</li>
+        <li>Скачайте и установите приложение.</li>
+    </ol>
 
-    <!-- Подключаем Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <h4>2. Получение конфигурации для подключения</h4>
+    <ol>
+        <li>Получите конфигурацию от администратора сервера или через ваш Telegram-бот, которая может быть в виде файла <code>.conf</code> или QR-кода.</li>
+        <li>Если у вас есть файл <code>.conf</code>, отправьте его на ваше iOS-устройство.</li>
+        <li>Если у вас есть QR-код, сохраните его на устройстве.</li>
+    </ol>
+
+    <h4>3. Настройка WireGuard</h4>
+    <p><strong>Если у вас файл конфигурации (.conf):</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на значок <strong>+</strong> в правом верхнем углу экрана.</li>
+        <li>Выберите <strong>Импортировать конфигурацию</strong>.</li>
+        <li>Выберите ваш файл <code>.conf</code>.</li>
+        <li>Настройки будут автоматически добавлены.</li>
+    </ol>
+    <p><strong>Если у вас QR-код:</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на значок <strong>+</strong> и выберите <strong>Сканировать QR-код</strong>.</li>
+        <li>Разрешите приложению доступ к камере и отсканируйте QR-код.</li>
+        <li>Приложение автоматически загрузит все необходимые настройки.</li>
+    </ol>
+
+    <h4>4. Подключение к VPN</h4>
+    <ol>
+        <li>Вернитесь в основное окно приложения WireGuard.</li>
+        <li>Найдите ваше подключение и включите его, переключив ползунок в положение <strong>Включено</strong>.</li>
+        <li>Приложение запросит разрешение на подключение — подтвердите его.</li>
+        <li>После успешного подключения вы сможете пользоваться интернетом через VPN.</li>
+    </ol>
+
+    <h4>5. Завершение работы</h4>
+    <ol>
+        <li>Когда вам больше не нужно подключение, вернитесь в приложение и выключите соединение, переключив ползунок в положение <strong>Выключено</strong>.</li>
+    </ol>
+
+    <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на iOS!</p>
+</div>
+
+<!-- Инструкция для Windows -->
+<div id="windows" class="mb-4">
+    <h3>Настройка на Windows</h3>
+    <h4>1. Установка приложения WireGuard</h4>
+    <ol>
+        <li>Перейдите на <a href="https://www.wireguard.com/install/" target="_blank"><strong>официальную страницу WireGuard</strong></a>.</li>
+        <li>Скачайте установочный файл для Windows.</li>
+        <li>Запустите установочный файл и следуйте инструкциям на экране.</li>
+        <li>После завершения установки перезагрузите компьютер.</li>
+    </ol>
+
+    <h4>2. Получение конфигурации для подключения</h4>
+    <ol>
+        <li>Получите конфигурацию от администратора сервера или через ваш Telegram-бот, которая может быть в виде файла <code>.conf</code> или QR-кода.</li>
+        <li>Если у вас есть файл <code>.conf</code>, отправьте его на ваше устройство.</li>
+        <li>Если у вас есть QR-код, сохраните его на устройстве.</li>
+    </ol>
+
+    <h4>3. Настройка WireGuard</h4>
+    <p><strong>Если у вас файл конфигурации (.conf):</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на кнопку <strong>Добавить туннель</strong> и выберите <strong>Импортировать конфигурацию из файла</strong>.</li>
+        <li>Выберите ваш файл <code>.conf</code>.</li>
+        <li>Настройки будут автоматически добавлены в приложение.</li>
+    </ol>
+    <p><strong>Если у вас QR-код:</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на кнопку <strong>Добавить туннель</strong> и выберите <strong>Сканировать QR-код</strong>.</li>
+        <li>Используйте камеру устройства для сканирования QR-кода.</li>
+        <li>Приложение автоматически загрузит настройки для подключения.</li>
+    </ol>
+
+    <h4>4. Подключение к VPN</h4>
+    <ol>
+        <li>Перейдите в основное окно приложения WireGuard.</li>
+        <li>Найдите ваше подключение и нажмите <strong>Активировать</strong>.</li>
+        <li>Приложение запросит разрешение на подключение — подтвердите его.</li>
+        <li>После успешного подключения вы сможете использовать интернет через VPN.</li>
+    </ol>
+
+    <h4>5. Завершение работы</h4>
+    <ol>
+        <li>Когда вам больше не нужно подключение, вернитесь в приложение и выключите соединение.</li>
+    </ol>
+
+    <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на Windows!</p>
+</div>
+<!-- Инструкция для MacOS -->
+<div id="macos" class="mb-4">
+    <h3>Настройка на MacOS</h3>
+    <h4>1. Установка приложения WireGuard</h4>
+    <ol>
+        <li>Перейдите на <a href="https://www.wireguard.com/install/" target="_blank"><strong>официальную страницу WireGuard</strong></a>.</li>
+        <li>Скачайте установочный файл для MacOS.</li>
+        <li>Откройте загруженный файл и следуйте инструкциям по установке.</li>
+        <li>После завершения установки откройте приложение WireGuard.</li>
+    </ol>
+
+    <h4>2. Получение конфигурации для подключения</h4>
+    <ol>
+        <li>Получите конфигурацию от администратора сервера или через ваш Telegram-бот, которая может быть в виде файла <code>.conf</code> или QR-кода.</li>
+        <li>Если у вас есть файл <code>.conf</code>, отправьте его на ваше Mac-устройство.</li>
+        <li>Если у вас есть QR-код, сохраните его на устройстве.</li>
+    </ol>
+
+    <h4>3. Настройка WireGuard</h4>
+    <p><strong>Если у вас файл конфигурации (.conf):</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на кнопку <strong>+</strong> в левом нижнем углу окна.</li>
+        <li>Выберите <strong>Импортировать конфигурацию из файла</strong>.</li>
+        <li>Выберите файл <code>.conf</code> на вашем Mac.</li>
+        <li>Конфигурация будет автоматически добавлена в приложение.</li>
+    </ol>
+    <p><strong>Если у вас QR-код:</strong></p>
+    <ol>
+        <li>Откройте приложение <strong>WireGuard</strong>.</li>
+        <li>Нажмите на кнопку <strong>+</strong> и выберите <strong>Сканировать QR-код</strong>.</li>
+        <li>Используйте встроенную камеру или загрузите изображение QR-кода для сканирования.</li>
+        <li>Приложение автоматически загрузит настройки VPN.</li>
+    </ol>
+
+    <h4>4. Подключение к VPN</h4>
+    <ol>
+        <li>Вернитесь в основное окно приложения WireGuard.</li>
+        <li>Найдите ваше подключение и нажмите <strong>Активировать</strong>.</li>
+        <li>Приложение запросит разрешение на подключение — подтвердите его.</li>
+        <li>После успешного подключения вы сможете использовать интернет через VPN.</li>
+    </ol>
+
+    <h4>5. Завершение работы</h4>
+    <ol>
+        <li>Когда вам больше не нужно подключение, вернитесь в приложение и выключите соединение, выбрав <strong>Отключить</strong>.</li>
+    </ol>
+
+    <p class="lead text-center">Теперь вы можете безопасно и анонимно использовать интернет через WireGuard на MacOS!</p>
+</div>
+</div>

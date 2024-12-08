@@ -332,10 +332,9 @@ async def handle_faq(callback: types.CallbackQuery):
 # Инструкции
 @user_private_router.message(F.text == "📖 Инструкции")
 async def send_instructions(message: types.Message):
-    url = 'https://github.com/JackSMiIe/LockNet/blob/main/html_base/WireGuard_instructions.html'
-    # Экранируем точку в URL
-
-    await message.answer(f'Вы можете просмотреть инструкции по {url}).', parse_mode='HTML')
+    url = 'https://jacksmiie.github.io/LockNet/'
+    # Используем HTML-ссылку
+    await message.answer(f'Вы можете просмотреть инструкции по <a href="{url}">ссылке</a>.', parse_mode='HTML')
 
 # Обработчик для кнопки оплаты FSM
 @user_private_router.callback_query(F.data.startswith('pay_'))
