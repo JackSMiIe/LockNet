@@ -20,38 +20,6 @@ from handlers.user_private_support import *
 from kbds.inline import get_inlineMix_btns
 from kbds.reply import get_keyboard
 
-# from aiogram import Router, types, F
-# from aiogram.filters import Command, or_f, StateFilter
-# from aiogram.fsm.context import FSMContext
-# from aiogram.fsm.state import StatesGroup, State
-# from sqlalchemy import select
-#
-# from sqlalchemy.ext.asyncio import AsyncSession
-#
-# from bot_instance import bot
-# from database.models import User
-# from database.orm_support import get_all_users_with_tickets, get_all_users_with_tickets_false, \
-#     get_all_users_with_tickets_true
-# from handlers.admin_operations import AdminStates, process_remove_admin_id
-#
-# from database.orm_query import orm_add_product, orm_get_products, orm_delete_product, count_products, \
-#     count_promotion_products
-# from database.orm_query_blacklist import get_all_blacklisted_users, add_to_blacklist, count_blacklist_users, \
-#     add_user_to_blacklist, remove_user_from_blacklist
-# from database.orm_query_free_user import count_free_users
-# from database.orm_query_trial_product import get_trial_products, add_trial_product, delete_trial_product, \
-#     count_trial_products
-# from database.orm_query_trial_users import count_trial_users
-# from database.orm_query_users import orm_count_users_with_true_status, count_inactive_users, count_total_users, \
-#     orm_get_users
-# from filters.chat_types import ChatTypeFilter, IsAdmin
-# from handlers.admin_operations import add_admin, remove_admin, list_admins, process_admin_id
-# from handlers.user_private_operations import show_all_users, send_config_and_qr_button, get_active, \
-#     delete_user_by_id_from_pivpn, toggle_pivpn_user
-# from handlers.user_private_support import resolve_ticket, send_answer_to_client
-# from kbds.inline import get_inlineMix_btns, get_callback_btns
-# from kbds.reply import get_keyboard
-
 
 ADMIN_KB = get_keyboard(
     "📦 Товары",            # Кнопка для управления товарами
@@ -193,7 +161,7 @@ async def handle_show_users(callback_query: types.CallbackQuery, session: AsyncS
     await show_all_users(callback_query, session)
 # Обработка нажатия на кнопку "Просмотр Конфиг"
 @admin_router.callback_query(F.data.startswith("view_config_"))
-async def handle_view_config(callback_query: types.CallbackQuery, state: FSMContext):
+async def handle_view_config(callback_query: types.CallbackQuery):
     # Извлекаем user_id из callback_data
     user_id = callback_query.data.split("_")[-1]
 
@@ -307,7 +275,7 @@ async def handle_newsletter(callback_query: types.CallbackQuery):
 # Обработчик для выбора шаблона
 @admin_router.callback_query(F.data.in_(['template_1', 'template_2', 'template_3', 'custom_template']))
 @admin_router.callback_query(F.data.in_(['template_1', 'template_2', 'template_3', 'custom_template']))
-async def handle_template_selection(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+async def handle_template_selection(callback_query: types.CallbackQuery, state: FSMContext):
     selected_template = callback_query.data
     await state.update_data(selected_template=selected_template)
 
@@ -352,7 +320,7 @@ async def handle_custom_template_message(message: types.Message, state: FSMConte
         })
     )
 
-
+# Подтвердить
 @admin_router.callback_query(F.data == 'confirm_message_all')
 async def confirm_and_send_newsletter(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     # Получаем текст сообщения из состояния
@@ -474,7 +442,7 @@ class TicketAnswerState(StatesGroup):  # Наследуем от StatesGroup
 
 # Запуск состояния FSM
 @admin_router.callback_query(F.data.startswith('answer_'))
-async def handle_answer_ticket(callback_query: types.CallbackQuery, session: AsyncSession, state: FSMContext):
+async def handle_answer_ticket(callback_query: types.CallbackQuery, state: FSMContext):
     # Извлекаем ticket_id, user_id и issue_description из callback_data
     _, ticket_id, user_id, issue_description = callback_query.data.split('_', 3)
 
@@ -567,7 +535,7 @@ async def show_blacklist(message: types.Message, session: AsyncSession):
 
 # Внести в ЧС
 @admin_router.message(F.text.lower() == "внести в чс")
-async def start_blacklist_process(message: types.Message, state: FSMContext):
+async def start_blacklist_process(message: types.Message):
     # Отправляем сообщение с инструкцией и клавиатурой
     await message.answer(
         "Введите <b>ID</b> и <b>причину</b> через запятую. <b>Пример</b>: 424629424, Плохое поведение в чате",
@@ -579,7 +547,7 @@ async def start_blacklist_process(message: types.Message, state: FSMContext):
     )
 
 @admin_router.callback_query(F.data.startswith('add_to_blacklist_'))
-async def process_blacklist_input(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+async def process_blacklist_input(callback_query: types.CallbackQuery, state: FSMContext):
     # Отправляем сообщение с инструкцией и запрашиваем ввод
     await callback_query.message.answer(
         "Введите <b>ID</b> и <b>причину</b> через запятую. <b>Пример</b>: 424629424, Плохое поведение в чате",
@@ -630,7 +598,7 @@ async def cancel_handler(callback_query: types.CallbackQuery, state: FSMContext)
 
 # Показ ассортимента товаров
 @admin_router.message(F.text == '📦 Товары')
-async def menu_cmd(message: types.Message, session: AsyncSession):
+async def menu_cmd(message: types.Message):
     await message.answer('<b>Выберите действие:</b>', reply_markup=get_inlineMix_btns(btns={
         'Добавить товар': 'добавить товар_',
         'Добавить акцию': 'добавить акцию_',
@@ -640,7 +608,7 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
     }),parse_mode='HTML')
 
 @admin_router.callback_query(F.data.startswith('пробный период_'))
-async def trial_menu(callback_query: types.CallbackQuery, state: FSMContext):
+async def trial_menu(callback_query: types.CallbackQuery):
     await callback_query.message.answer('Пробный период')
     await callback_query.message.answer('Действия:', reply_markup=get_inlineMix_btns(btns={
         'Просмотр': 'show_trial_',
@@ -681,7 +649,7 @@ async def delete_trial_product_callback(callback_query: types.CallbackQuery, ses
 
 # Получить все товары с пробным периодом
 @admin_router.callback_query(F.data.startswith('show_trial_'))
-async def trial_period_callback(callback_query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+async def trial_period_callback(callback_query: types.CallbackQuery,session: AsyncSession):
     try:
         # Получаем все продукты с пробным периодом
         products = await get_trial_products(session)
@@ -735,7 +703,7 @@ async def add_trial_product_callback(callback_query: types.CallbackQuery, state:
 
 # Обработчик для получения названия товара
 @admin_router.message(ProductState.waiting_for_product_name)
-async def process_product_name(message: types.Message, state: FSMContext, session: AsyncSession):
+async def process_product_name(message: types.Message, state: FSMContext):
     product_name = message.text.strip()
 
     # Проверка на пустое имя
@@ -851,7 +819,7 @@ async def delete_product(callback: types.CallbackQuery, session: AsyncSession):
     }))
 
 # Изменение товара
-@admin_router.message(or_f(Command("change"), F.text.lower() == 'изменить товар'))
+@admin_router.message(F.text.lower() == 'изменить товар')
 async def change_price(message: types.Message):
     await message.answer('Что будем менять?')
 
@@ -890,7 +858,6 @@ async def admin_add(callback: types.CallbackQuery, state: FSMContext, session: A
         await state.set_state(AddProduct.count_day)  # Переводим в следующее состояние для ввода цены
 
 # Команда отмены
-# Команда отмены
 @admin_router.message(StateFilter("*"), or_f(Command("отмена"), F.text.casefold() == "отмена"))
 async def cancel_handler(message: types.Message, state: FSMContext):
     if await state.get_state():
@@ -898,7 +865,6 @@ async def cancel_handler(message: types.Message, state: FSMContext):
         await message.answer("Действия отменены", reply_markup=ADMIN_KB)
     else:
         await message.answer("Нет активных действий для отмены.", reply_markup=ADMIN_KB)
-
 
 # Команда "назад" для возврата на предыдущий шаг
 @admin_router.message(StateFilter("*"), or_f(Command("назад"), F.text.casefold() == "назад"))
@@ -965,16 +931,11 @@ async def back_to_menu(callback_query: types.CallbackQuery, state: FSMContext):
     # Ответ на нажатие кнопки "Назад"
     await callback_query.message.answer("Вы вернулись в меню.", reply_markup=ADMIN_KB)
 
-# @admin_router.callback_query(F.data == 'назад')
-# async def back_to_menu(callback_query: types.CallbackQuery):
-#     await callback_query.message.answer("Вы вернулись в меню.", reply_markup=ADMIN_KB)
-
 # Команды для выхода и отмены в любое время
 @admin_router.message(or_f(F.text.lower() == 'выход', F.text.lower() == 'отмена'))
 async def admin_exit(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer("Выход выполнен.", reply_markup=ADMIN_KB)
-
 
 @admin_router.message(F.text.lower() == 'количество активных пользователей')
 async def count_active_users(message: types.Message, session: AsyncSession):
@@ -990,7 +951,7 @@ async def statistic(message: types.Message, session: AsyncSession):
     # Подсчет клиентов с пробным периодом
     trial_users = await count_trial_users(session)
     # Черный список
-    black_list = await count_blacklist_users(session)
+    black_l = await count_blacklist_users(session)
     # Подсчет кл-ва продуктов
     count_product = await count_products(session)
     # Подсчет Безлимитных клиентов
@@ -1014,7 +975,7 @@ async def statistic(message: types.Message, session: AsyncSession):
         f"Кл-во созданных продуктов : {count_product}\n"
         f"Кл-во Акций : {promotion_product}\n"
         f"Пробный продукт(должен быть всегда = 1) : {trial_product}\n"
-        f"В черном списке :{black_list}")
+        f"В черном списке :{black_l}")
 
     # Отправляем все статистики в одном сообщении
     await message.answer(stats_message)
