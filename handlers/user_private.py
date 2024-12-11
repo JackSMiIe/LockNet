@@ -182,20 +182,67 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
     query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
     existing_user = result.scalar()
+    button_text = 'Продлить' if existing_user else 'Купить'
+    products = await orm_get_products(session)
 
-    for product in await orm_get_products(session):
-        # Определяем текст кнопки в зависимости от наличия пользователя
-        button_text = 'Продлить' if existing_user else 'Купить'
-        formatted_price = f"{product.price / 100:.2f}"
-        await message.answer(
-            f'<strong>{product.name}</strong>\n'
-            f'Цена: {formatted_price} руб.\n'
-            f'Количество дней: {product.count_day}\n',parse_mode='HTML',
-            reply_markup=get_inlineMix_btns(btns={
-                button_text: f'pay_{product.id}',
-                # 'Подробнее': f'change_{product.id}'
-            })
-        )
+    if not products:
+        await message.answer('В ассортименте нет товаров.')
+        return
+
+    # Разделяем товары на две категории: "Акция" и остальные
+    action_products = [product for product in products if 'Акция' in product.name]
+    other_products = [product for product in products if 'Акция' not in product.name]
+    other_products = sorted(other_products, key=lambda p: p.name.lower())
+
+    # Отправка товаров с "Акция"
+    if action_products:
+        for product in action_products:
+            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену для каждого товара
+            response_message = (f"<strong>{product.name}</strong>\n"
+                                f"Цена: {formatted_price} руб.\n"
+                                f"Кол-во дней: {product.count_day}\n\n")
+            # Отправляем товары с "Акция" и кнопки для управления
+            await message.answer(
+                response_message,
+                reply_markup=get_inlineMix_btns(btns={
+                    button_text: f'pay_{product.id}'
+                })
+            )
+
+    # Формируем сообщение с остальными товарами
+    if other_products:
+        for product in other_products:
+            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену для каждого товара
+            response_message = (f"<strong>{product.name}</strong>\n"
+                                f"Цена: {formatted_price} руб.\n"
+                                f"Кол-во дней: {product.count_day}\n\n")
+            # Отправляем остальные товары и кнопки для управления
+            await message.answer(
+                response_message,
+                reply_markup=get_inlineMix_btns(btns={
+                    button_text: f'pay_{product.id}'
+                })
+            )
+
+
+
+
+
+
+
+    # for product in await orm_get_products(session):
+    #     # Определяем текст кнопки в зависимости от наличия пользователя
+    #     button_text = 'Продлить' if existing_user else 'Купить'
+    #     formatted_price = f"{product.price / 100:.2f}"
+    #     await message.answer(
+    #         f'<strong>{product.name}</strong>\n'
+    #         f'Цена: {formatted_price} руб.\n'
+    #         f'Количество дней: {product.count_day}\n',parse_mode='HTML',
+    #         reply_markup=get_inlineMix_btns(btns={
+    #             button_text: f'pay_{product.id}',
+    #             # 'Подробнее': f'change_{product.id}'
+    #         })
+    #     )
 
 # О сервере
 class SupportStates(StatesGroup):
@@ -334,7 +381,7 @@ async def handle_faq(callback: types.CallbackQuery):
 async def send_instructions(message: types.Message):
     url = 'https://jacksmiie.github.io/LockNet/'
     # Используем HTML-ссылку
-    await message.answer(f'Вы можете просмотреть инструкции по <a href="{url}">ссылке</a>.', parse_mode='HTML')
+    await message.answer(f'Вы можете просмотреть инструкции по <a href="{url}">ссылке</a>', parse_mode='HTML')
 
 # Обработчик для кнопки оплаты FSM
 @user_private_router.callback_query(F.data.startswith('pay_'))
