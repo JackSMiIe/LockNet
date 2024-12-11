@@ -20,3 +20,4 @@ config.json
 # Системные файлы
 .DS_Store
 Thumbs.db
+database_vpn_bot.db
