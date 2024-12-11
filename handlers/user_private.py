@@ -196,33 +196,35 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
 
     # Отправка товаров с "Акция"
     if action_products:
+        print(f"Акционные товары: {[product.name for product in action_products]}")
         for product in action_products:
-            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену для каждого товара
+            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену
             response_message = (f"<strong>{product.name}</strong>\n"
                                 f"Цена: {formatted_price} руб.\n"
                                 f"Кол-во дней: {product.count_day}\n\n")
-            # Отправляем товары с "Акция" и кнопки для управления
             await message.answer(
                 response_message,
                 reply_markup=get_inlineMix_btns(btns={
                     button_text: f'pay_{product.id}'
                 })
             )
+            await asyncio.sleep(0.1)  # Даём Telegram API время обработать сообщение
 
-    # Формируем сообщение с остальными товарами
+    # Отправка остальных товаров
     if other_products:
+        print(f"Остальные товары: {[product.name for product in other_products]}")
         for product in other_products:
-            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену для каждого товара
+            formatted_price = f"{product.price / 100:.2f}"  # Пересчитываем цену
             response_message = (f"<strong>{product.name}</strong>\n"
                                 f"Цена: {formatted_price} руб.\n"
                                 f"Кол-во дней: {product.count_day}\n\n")
-            # Отправляем остальные товары и кнопки для управления
             await message.answer(
                 response_message,
                 reply_markup=get_inlineMix_btns(btns={
                     button_text: f'pay_{product.id}'
                 })
             )
+            await asyncio.sleep(0.1)  # Даём Telegram API время обработать сообщение
 
 
 
