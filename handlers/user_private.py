@@ -355,7 +355,8 @@ async def successful_payment_handler(message: types.Message, state: FSMContext, 
 @user_private_router.callback_query(F.data.startswith('qr_'))
 async def send_qr(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png"
+    qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
+
 
     try:
         # Отправка QR-кода

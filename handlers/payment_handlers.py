@@ -242,8 +242,8 @@ async def generate_and_send_qr(message: types.Message, state: FSMContext, sessio
     if current_state == PaymentStates.payment_successful:
         user_id = message.from_user.id
         username = f"user_{user_id}"
-        qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png"
-        config_path = f"/home/jacksmile/configs/{username}.conf"
+        qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
+        config_path = f"/home/bv/configs/{username}.conf"
 
         try:
             # Проверка, существует ли пользователь в базе данных

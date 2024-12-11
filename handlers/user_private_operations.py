@@ -83,9 +83,8 @@ async def get_active(session: AsyncSession) -> list:
 async def send_config_and_qr_button(message: types.Message, user_id: int):
     try:
         username = f"user_{user_id}"
-        config_path = f"/home/jacksmile/configs/{username}.conf"
-        qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png"
-
+        qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
+        config_path = f"/home/bv/configs/{username}.conf"
         # Проверяем, существуют ли файлы конфигурации и QR-кода
         if not os.path.exists(config_path):
             await message.answer("Конфигурационный файл не найден.")
