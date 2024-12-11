@@ -186,14 +186,14 @@ async def menu_cmd(message: types.Message, session: AsyncSession):
     for product in await orm_get_products(session):
         # Определяем текст кнопки в зависимости от наличия пользователя
         button_text = 'Продлить' if existing_user else 'Купить'
-
+        formatted_price = f"{product.price / 100:.2f}"
         await message.answer(
             f'<strong>{product.name}</strong>\n'
-            f'Цена: {product.price} руб.\n',
-            # f'Количество дней: {product.count_day}',
+            f'Цена: {formatted_price} руб.\n'
+            f'Количество дней: {product.count_day}\n',parse_mode='HTML',
             reply_markup=get_inlineMix_btns(btns={
                 button_text: f'pay_{product.id}',
-                'Подробнее': f'change_{product.id}'
+                # 'Подробнее': f'change_{product.id}'
             })
         )
 
