@@ -1,9 +1,7 @@
 # Внешние библиотеки
 from aiogram import  Router, F
 from aiogram.exceptions import TelegramNotFound, TelegramAPIError
-from aiogram.filters import CommandStart, Command, or_f, StateFilter
-from aiogram.types import ReplyKeyboardRemove
-from aiogram.utils.formatting import as_marked_section, Bold
+from aiogram.filters import CommandStart, StateFilter
 from dotenv import load_dotenv, find_dotenv
 # Модели и ORM запросы
 from database.models import User, SupportTicket
@@ -20,36 +18,6 @@ from handlers.admin_operations import ADMIN_LIST
 from handlers.user_private_operations import *
 from handlers.payment_handlers import *
 from handlers.trial_period import process_trial_subscription
-
-
-# # Внешние библиотеки
-# from aiogram import types, Router, F
-# from aiogram.exceptions import TelegramAPIError, TelegramNotFound
-# from aiogram.fsm.context import FSMContext
-# from aiogram.filters import CommandStart, Command, or_f, StateFilter
-# from aiogram.fsm.state import StatesGroup, State
-# from aiogram.types import ReplyKeyboardRemove, FSInputFile
-# from aiogram.utils.formatting import as_marked_section, Bold
-# from dotenv import load_dotenv, find_dotenv
-# from sqlalchemy import select
-# from sqlalchemy.ext.asyncio import AsyncSession
-#
-# from bot_instance import bot
-# from common.bot_cmds_list import private
-# # Модели и ORM запросы
-# from database.models import User, SupportTicket
-# from database.orm_query import orm_get_products
-# from database.orm_query_trial_product import get_trial_products
-# from database.orm_query_trial_users import get_trial_subscription_info
-# # Фильтры и кнопки
-# from filters.chat_types import ChatTypeFilter
-# from handlers.admin_operations import ADMIN_LIST
-# from handlers.user_private_operations import get_subscription_info, send_config_and_qr_button
-# from kbds.inline import get_inlineMix_btns
-# from kbds.reply import get_keyboard
-# # Обработчики
-# from handlers.payment_handlers import pay, process_pre_checkout_query, process_successful_payment
-# from handlers.trial_period import process_trial_subscription
 
 
 load_dotenv(find_dotenv())
@@ -69,9 +37,9 @@ async def start_cmd(message: types.Message, state: FSMContext, session: AsyncSes
     bot_info = await bot.get_me()
     await message.answer(
         f"Привет, <b>{message.from_user.first_name}</b>! 👋\n\n"
-        f"Вы находитесь в нашем {bot_info.username}. 🌐 Мы обеспечиваем стабильное и безопасное подключение через сервер, расположенный в Нидерландах 🇳🇱.\n\n"
-        f"Просто наслаждайтесь безопасным интернет-серфингом, а мы позаботимся о вашей конфиденциальности и скорости соединения. 🔐⚡\n\n"
-        f"Если вам нужно больше информации или помощь — всегда рады помочь! 😊\n\n"
+        f"Добро пожаловать в наш бот. 🌐 Мы предоставляем доступ к защищённой сети, которая обеспечивает стабильность и безопасность при работе в интернете, благодаря нашим серверам, расположенным в Нидерландах 🇳🇱.\n\n"
+        f"Пользуйтесь сетью без лишних забот — ваша конфиденциальность и защита данных в надежных руках. 🔒✨\n\n"
+        f"Если у вас возникнут вопросы или понадобится помощь, мы всегда готовы помочь! 😊\n\n"
         f"Выберите действие 👇",
         parse_mode='HTML',
         reply_markup=get_keyboard(
