@@ -82,7 +82,7 @@ async def process_successful_payment(message: types.Message, state, session: Asy
 
     # Проверка, что данные в платеже правильные
     try:
-        if not message.successful_payment.invoice_payload.startswith('wtf'):
+        if not message.successful_payment.invoice_payload.startswith('product'):
             await message.answer("Некорректные данные в платеже.")
             return
 
