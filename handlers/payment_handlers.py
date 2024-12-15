@@ -46,7 +46,7 @@ async def pay(callback: types.CallbackQuery, session: AsyncSession, state: FSMCo
                 chat_id=callback.from_user.id,
                 title="Оплата подписки",
                 description=f"Тариф {product.name}",
-                payload=f"№_{product_id}",
+                payload=f"product_{product_id}",
                 provider_token=os.getenv('TOKEN_CASH'),
                 currency='RUB',
                 prices=[LabeledPrice(label=product.name, amount=int(product.price))],
