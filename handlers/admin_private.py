@@ -68,7 +68,7 @@ async def activate_user(callback_query: types.CallbackQuery, session: AsyncSessi
     user_id = int(callback_query.data.split("_")[2])
 
     async with session.begin():
-        result = await session.execute(select(User).where(User.user_id == user_id))
+        result = await session.execute(select(UserMobile).where(UserMobile.user_id == user_id))
         user = result.scalar_one_or_none()
 
         if user:
@@ -90,7 +90,7 @@ async def deactivate_user(callback_query: types.CallbackQuery, session: AsyncSes
     user_id = int(callback_query.data.split("_")[2])
 
     async with session.begin():
-        result = await session.execute(select(User).where(User.user_id == user_id))
+        result = await session.execute(select(UserMobile).where(UserMobile.user_id == user_id))
         user = result.scalar_one_or_none()
 
         if user:
@@ -142,7 +142,7 @@ async def delete_user(callback_query: types.CallbackQuery, session: AsyncSession
 
         async with session.begin():
             # Удаление пользователя из базы данных
-            result = await session.execute(select(User).where(User.user_id == user_id))
+            result = await session.execute(select(UserMobile).where(UserMobile.user_id == user_id))
             user = result.scalar_one_or_none()
 
             if user:

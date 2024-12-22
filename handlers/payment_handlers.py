@@ -7,7 +7,7 @@ from sqlalchemy import select, delete
 import asyncio
 import os
 import logging
-from database.models import Product, User, UsedTrialUser, TrialUser
+from database.models import Product, UserMobile, UsedTrialUser, TrialUser
 from aiogram.types import LabeledPrice, FSInputFile
 from bot_instance import bot
 from datetime import datetime, timedelta
@@ -147,7 +147,7 @@ async def process_successful_payment(message: types.Message, state, session: Asy
     # Работа с платной подпиской
     try:
         # Проверка существования пользователя
-        user_query = select(User).where(User.user_id == user_id)
+        user_query = select(UserMobile).where(UserMobile.user_id == user_id)
         user_result = await session.execute(user_query)
         existing_user = user_result.scalar()
 
@@ -169,7 +169,7 @@ async def process_successful_payment(message: types.Message, state, session: Asy
         else:
             session.add(product)
             # Создание нового пользователя
-            new_user = User(
+            new_user = UserMobile(
                 user_id=user_id,
                 username=username,
                 status=True,
@@ -242,12 +242,14 @@ async def generate_and_send_qr(message: types.Message, state: FSMContext, sessio
     if current_state == PaymentStates.payment_successful:
         user_id = message.from_user.id
         username = f"user_{user_id}"
-        qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
-        config_path = f"/home/bv/configs/{username}.conf"
+        qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png" # ---Тест
+        config_path = f"/home/jacksmile/configs/{username}.conf" # ---Тест
+        # qr_path = f"/home/bv/qr_png/qr_{user_id}.png" # ---Основа
+        # config_path = f"/home/bv/configs/{username}.conf" # ---Основа
 
         try:
             # Проверка, существует ли пользователь в базе данных
-            query = select(User).where(User.user_id == user_id)
+            query = select(UserMobile).where(UserMobile.user_id == user_id)
             result = await session.execute(query)
             existing_user = result.scalar()
 

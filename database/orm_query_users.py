@@ -1,13 +1,13 @@
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import User
+from database.models import UserMobile
 
 
 # Получить все записи БД
 async def orm_get_users(session: AsyncSession):
     try:
-        query = select(User)
+        query = select(UserMobile)
         result = await session.execute(query)
         users = result.scalars().all()
         return users
@@ -19,7 +19,7 @@ async def orm_get_users(session: AsyncSession):
 async def orm_delete_user(session: AsyncSession, user_id: int):
     try:
         # Составляем запрос на удаление
-        query = delete(User).where(User.user_id == user_id)
+        query = delete(UserMobile).where(UserMobile.user_id == user_id)
         # Выполняем запрос
         await session.execute(query)
         await session.commit()
@@ -32,7 +32,7 @@ async def orm_delete_user(session: AsyncSession, user_id: int):
 async def orm_update_user_status(session: AsyncSession, user_id: int, new_status: bool):
     try:
         # Составляем запрос на обновление
-        query = update(User).where(User.user_id == user_id).values(status=new_status)
+        query = update(UserMobile).where(UserMobile.user_id == user_id).values(status=new_status)
         # Выполняем запрос
         await session.execute(query)
         await session.commit()
@@ -44,7 +44,7 @@ async def orm_update_user_status(session: AsyncSession, user_id: int, new_status
 # Подсчет пользователей со статусом True
 async def orm_count_users_with_true_status(session: AsyncSession):
     try:
-        query = select(User).filter(User.status == True)  # Выбираем пользователей со статусом True
+        query = select(UserMobile).filter(UserMobile.status == True)  # Выбираем пользователей со статусом True
         result = await session.execute(query)
         users = result.scalars().all()  # Получаем все результаты
         count = len(users)  # Подсчитываем количество пользователей
@@ -58,7 +58,7 @@ async def count_active_users(session: AsyncSession) -> int:
     """
     Подсчитывает количество активных пользователей (статус True).
     """
-    query = select(func.count()).select_from(User).where(User.status.is_(True))
+    query = select(func.count()).select_from(UserMobile).where(UserMobile.status.is_(True))
     result = await session.execute(query)
     return result.scalar()
 
@@ -67,7 +67,7 @@ async def count_inactive_users(session: AsyncSession) -> int:
     """
     Подсчитывает количество неактивных пользователей (статус False).
     """
-    query = select(func.count()).select_from(User).where(User.status.is_(False))
+    query = select(func.count()).select_from(UserMobile).where(UserMobile.status.is_(False))
     result = await session.execute(query)
     return result.scalar()
 
@@ -76,7 +76,7 @@ async def count_total_users(session: AsyncSession) -> int:
     """
     Подсчитывает общее количество пользователей.
     """
-    query = select(func.count()).select_from(User)
+    query = select(func.count()).select_from(UserMobile)
     result = await session.execute(query)
     return result.scalar()
 

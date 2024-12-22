@@ -4,7 +4,7 @@ from aiogram.exceptions import TelegramNotFound, TelegramAPIError
 from aiogram.filters import CommandStart, StateFilter
 from dotenv import load_dotenv, find_dotenv
 # Модели и ORM запросы
-from database.models import User, SupportTicket
+from database.models import UserMobile, SupportTicket
 from database.orm_query import orm_get_products
 from database.orm_query_blacklist import is_blacklisted
 from database.orm_query_trial_product import get_trial_products
@@ -147,7 +147,7 @@ async def back_callback(callback_query: types.CallbackQuery, state: FSMContext):
 async def menu_cmd(message: types.Message, session: AsyncSession):
     # Проверяем, зарегистрирован ли пользователь
     user_id = message.from_user.id
-    query = select(User).where(User.user_id == user_id)
+    query = select(UserMobile).where(UserMobile.user_id == user_id)
     result = await session.execute(query)
     existing_user = result.scalar()
     button_text = 'Продлить' if existing_user else 'Купить'
@@ -372,8 +372,8 @@ async def successful_payment_handler(message: types.Message, state: FSMContext, 
 @user_private_router.callback_query(F.data.startswith('qr_'))
 async def send_qr(callback: types.CallbackQuery):
     user_id = callback.from_user.id
-    qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
-
+    # qr_path = f"/home/bv/qr_png/qr_{user_id}.png" # ---Основа
+    qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png" # ---Тест
 
     try:
         # Отправка QR-кода

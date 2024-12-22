@@ -72,8 +72,10 @@ async def process_trial_subscription(callback: CallbackQuery, session: AsyncSess
 async def generate_and_send_qr(message: types.Message, session: AsyncSession,user_id):
     user_id = user_id # Правки были тут user_id
     username = f"user_{user_id}"
-    qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
-    config_path = f"/home/bv/configs/{username}.conf"
+    # qr_path = f"/home/bv/qr_png/qr_{user_id}.png" # ---Основа
+    # config_path = f"/home/bv/configs/{username}.conf" # ---Основа
+    qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png" # ---Тест
+    config_path = f"/home/jacksmile/configs/{username}.conf" # ---Тест
 
     try:
         # Создание конфигурационного файла с помощью pivpn

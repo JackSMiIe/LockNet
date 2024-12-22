@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from bot_instance import bot
-from database.models import User
+from database.models import UserMobile
 from kbds.inline import get_inlineMix_btns
 
 
@@ -18,7 +18,7 @@ async def show_all_users(callback_query: types.CallbackQuery, session: AsyncSess
         # Получение всех пользователей с продуктами
         async with session.begin():
             result = await session.execute(
-                select(User).options(joinedload(User.product))
+                select(UserMobile).options(joinedload(UserMobile.product))
             )
             users = result.scalars().all()
 
@@ -33,10 +33,15 @@ async def show_all_users(callback_query: types.CallbackQuery, session: AsyncSess
             product_name = user.product.name if user.product and user.product.name else "Не привязан"
             start = user.subscription_start.strftime("%d-%m-%Y") if user.subscription_start else "Не указано"
             end = user.subscription_end.strftime("%d-%m-%Y") if user.subscription_end else "Не указано"
+            # Формируем ссылку на профиль
+            if user.username:
+                user_profile_url = f"https://t.me/{user.username}"
+            else:
+                user_profile_url = f"tg://user?id={user.user_id}"
 
             # Формирование информации о пользователе
             user_info = (
-                f"Пользователь ID: {user.user_id}\n"
+                f'Пользователь ID: <a href="{user_profile_url}">{user.user_id}</a>\n'
                 f"Username: {username}\n"
                 f"Продукт: {product_name}\n"
                 f"Статус подписки: {subscription_status}\n"
@@ -67,7 +72,7 @@ async def get_active(session: AsyncSession) -> list:
         # Выполняем запрос для получения всех активных пользователей
         async with session.begin():
             result = await session.execute(
-                select(User).filter(User.status == True)  # Только активные пользователи
+                select(UserMobile).filter(UserMobile.status == True)  # Только активные пользователи
             )
             active_users = result.scalars().all()
 
@@ -83,8 +88,11 @@ async def get_active(session: AsyncSession) -> list:
 async def send_config_and_qr_button(message: types.Message, user_id: int):
     try:
         username = f"user_{user_id}"
-        qr_path = f"/home/bv/qr_png/qr_{user_id}.png"
-        config_path = f"/home/bv/configs/{username}.conf"
+        config_path = f"/home/jacksmile/configs/{username}.conf" #---Тест
+        qr_path = f"/home/jacksmile/PycharmProjects/vpn_bot_v1.1/users_configs/qr_png/qr_{user_id}.png" # ---Тест
+        # qr_path = f"/home/bv/qr_png/qr_{user_id}.png" # ---Основа
+        # config_path = f"/home/bv/configs/{username}.conf" # ---Основа
+
         # Проверяем, существуют ли файлы конфигурации и QR-кода
         if not os.path.exists(config_path):
             await message.answer("Конфигурационный файл не найден.")
@@ -114,7 +122,7 @@ async def get_subscription_info(user_id: int, session: AsyncSession) -> str:
         # Запрос для получения информации о пользователе с продуктом
         async with session.begin():
             result = await session.execute(
-                select(User).options(joinedload(User.product)).where(User.user_id == user_id)
+                select(UserMobile).options(joinedload(UserMobile.product)).where(UserMobile.user_id == user_id)
             )
             user = result.scalar_one_or_none()
 

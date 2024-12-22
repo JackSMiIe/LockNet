@@ -37,7 +37,7 @@ class TrialProduct(Base):
         self.description = description
 
 # Класс пользователя
-class User(Base):
+class UserMobile(Base):
     __tablename__ = 'user'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
