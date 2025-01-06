@@ -142,8 +142,18 @@ async def back_callback(callback_query: types.CallbackQuery, state: FSMContext):
         ),
     )
 
-# Варианты подписки
+
 @user_private_router.message(F.text == "💼 Тарифы")
+async def menu_cmd(message: types.Message):
+    await message.answer('<b>Ваше устройство 👇</b>',parse_mode='HTML',reply_markup=get_keyboard(
+        "Смартфон",
+        "Компьютер",
+        sizes=(2,)
+        ))
+
+
+# Варианты подписки
+@user_private_router.message(F.text == "Смартфон")
 async def menu_cmd(message: types.Message, session: AsyncSession):
     # Проверяем, зарегистрирован ли пользователь
     user_id = message.from_user.id

@@ -21,7 +21,7 @@ dp.include_router(user_private_router)
 dp.include_router(admin_router)
 
 async def on_startup(bot):  # dp передается автоматически при старте
-    run_param = False
+    run_param = True
     if run_param:
         await drop_db()
     await create_db()

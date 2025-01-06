@@ -315,3 +315,4 @@ async def generate_and_send_qr(message: types.Message, state: FSMContext, sessio
             await state.clear()
         else:
             await session.commit()
+

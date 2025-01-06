@@ -18,10 +18,33 @@ class Product(Base):
     price: Mapped[int] = mapped_column(Integer,nullable=False) # Работать тут
     count_day: Mapped[int] = mapped_column(Integer, nullable=True)  # Пример столбца
 
+    # Связь многие-ко-многим через UserProduct
+    # purchases: Mapped[list["UserProduct"]] = relationship("UserProduct", back_populates="product")
+
     def __init__(self, name: str, price: float, count_day: int = None):
         self.name = name
         self.price = int(round(price * 100))  # Конвертация цены в центы
         self.count_day = count_day
+
+""""""""
+# -------------
+
+# Промежуточная таблица для связи пользователь-продукт
+class UserProduct(Base):
+    __tablename__ = 'user_products'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('user.id', ondelete="CASCADE"))
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey('product.id', ondelete="CASCADE"))
+    purchase_date: Mapped[DateTime] = mapped_column(DateTime, default=func.now())  # Дата покупки
+
+    # Связи для ORM
+    # user: Mapped["UserMobile"] = relationship("UserMobile", back_populates="purchases")
+    # product: Mapped["Product"] = relationship("Product", back_populates="purchases")
+
+""""""""
+#--------------
+
 # Пробный продукт (всегда 1)
 class TrialProduct(Base):
     __tablename__ = 'trial_product'
